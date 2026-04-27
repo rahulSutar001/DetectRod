@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0c10">
+<title>RodGuard AI</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;700;800&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0c10; --surface: #11141a; --surface2: #191d26;
+    --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.13);
+    --accent: #00e5a0; --accent2: #00c4ff; --danger: #ff4757; --warn: #ffa502;
+    --text: #e8eaf0; --muted: #6b7280;
+    --mono: 'JetBrains Mono', monospace; --display: 'Syne', sans-serif;
+  }
+  html, body { height: 100%; overflow: hidden; }
+  body { font-family: var(--display); background: var(--bg); color: var(--text); display: flex; flex-direction: column; }
+
+  /* HEADER */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);
+    background: var(--surface); flex-shrink: 0;
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+  }
+  .logo { display: flex; align-items: center; gap: 8px; }
+  .logo-icon { width: 28px; height: 28px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+  .logo-text { font-size: 14px; font-weight: 800; letter-spacing: -0.3px; }
+  .logo-sub { font-family: var(--mono); font-size: 9px; color: var(--muted); display: block; }
+  .status-pill { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; padding: 4px 9px; border-radius: 20px; border: 1px solid var(--border2); background: var(--surface2); color: var(--muted); transition: all 0.3s; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); transition: all 0.3s; }
+  .status-pill.active { color: var(--accent); border-color: rgba(0,229,160,0.3); }
+  .status-pill.active .status-dot { background: var(--accent); animation: blink 1.5s infinite; }
+  .status-pill.danger { color: var(--danger); border-color: rgba(255,71,87,0.35); }
+  .status-pill.danger .status-dot { background: var(--danger); animation: blink 0.6s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* TABS */
+  .mode-tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .mode-tab { flex: 1; padding: 10px 4px; font-family: var(--mono); font-size: 11px; text-align: center; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; transition: all 0.2s; background: none; border-top: none; border-left: none; border-right: none; letter-spacing: 0.3px; }
+  .mode-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* MAIN LAYOUT */
+  main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .view-panel { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+  .view-panel.active { display: flex; }
+
+  /* VIDEO / IMAGE AREA */
+  .media-area { position: relative; background: #000; flex: 1; overflow: hidden; display: flex; align-items: center; justify-content: center; min-height: 0; }
+  #videoEl { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: none; }
+  #liveCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); }
+
+  .placeholder { display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--muted); text-align: center; padding: 1.5rem; }
+  .placeholder .ph-icon { font-size: 40px; }
+  .placeholder p { font-size: 13px; line-height: 1.5; max-width: 220px; }
+
+  .drop-zone { display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--muted); text-align: center; padding: 1.5rem; cursor: pointer; border: 1.5px dashed var(--border2); border-radius: 12px; margin: 1rem; width: calc(100% - 2rem); transition: all 0.2s; }
+  .drop-zone:active { border-color: var(--accent); color: var(--accent); }
+  .drop-zone .dz-icon { font-size: 36px; }
+  .drop-zone p { font-size: 13px; line-height: 1.5; }
+  .drop-zone small { font-family: var(--mono); font-size: 10px; }
+  #fileInput { display: none; }
+  #imgCanvas { max-width: 100%; max-height: 100%; display: none; object-fit: contain; }
+
+  .alert-overlay { position: absolute; top: 0.75rem; left: 50%; transform: translateX(-50%); padding: 7px 14px; border-radius: 30px; font-family: var(--mono); font-size: 11px; font-weight: 600; pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 10; white-space: nowrap; }
+  .alert-overlay.rod { background: rgba(255,71,87,0.92); color: #fff; opacity: 1; }
+  .alert-overlay.no-rod { background: rgba(0,229,160,0.92); color: #000; opacity: 1; }
+
+  .conf-bar-container { position: absolute; bottom: 0.6rem; left: 0.75rem; right: 0.75rem; z-index: 10; pointer-events: none; }
+  .conf-label { font-family: var(--mono); font-size: 9px; color: rgba(255,255,255,0.5); margin-bottom: 3px; display: flex; justify-content: space-between; }
+  .conf-bar-bg { height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+  .conf-bar-fill { height: 100%; border-radius: 2px; background: var(--accent); width: 0%; transition: width 0.3s, background 0.3s; }
+
+  /* BOTTOM CONTROLS PANEL */
+  .controls-panel { background: var(--surface); border-top: 1px solid var(--border); padding: 0.75rem 1rem; flex-shrink: 0; padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+
+  /* DETECTION BADGE */
+  .det-badge { display: flex; align-items: center; gap: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 0.75rem; transition: all 0.3s; }
+  .det-badge.detected { border-color: rgba(255,71,87,0.5); background: rgba(255,71,87,0.1); }
+  .det-badge.safe { border-color: rgba(0,229,160,0.4); background: rgba(0,229,160,0.08); }
+  .det-badge-icon { font-size: 22px; }
+  .det-badge-info { flex: 1; }
+  .det-badge-label { font-family: var(--mono); font-size: 9px; color: var(--muted); }
+  .det-badge-value { font-size: 15px; font-weight: 800; }
+  .det-badge-value.danger-text { color: var(--danger); }
+  .det-badge-value.safe-text { color: var(--accent); }
+  .det-score { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+  /* BUTTON ROW */
+  .btn-row { display: flex; gap: 8px; margin-bottom: 0.75rem; }
+  .btn { flex: 1; padding: 11px 8px; border-radius: 8px; border: none; cursor: pointer; font-family: var(--display); font-size: 12px; font-weight: 700; transition: all 0.15s; text-align: center; -webkit-tap-highlight-color: transparent; }
+  .btn:active { transform: scale(0.96); }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:disabled { opacity: 0.4; }
+  .btn-danger { background: rgba(255,71,87,0.12); color: var(--danger); border: 1px solid rgba(255,71,87,0.3); }
+  .btn-danger:disabled { opacity: 0.4; }
+  .btn-upload { background: rgba(0,196,255,0.1); color: var(--accent2); border: 1px solid rgba(0,196,255,0.3); }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border2); }
+  .btn-secondary:disabled { opacity: 0.4; }
+
+  /* METRICS ROW */
+  .metrics-row { display: flex; gap: 6px; margin-bottom: 0.75rem; }
+  .metric-chip { flex: 1; background: var(--surface2); border-radius: 7px; padding: 6px 8px; text-align: center; }
+  .metric-chip-label { font-family: var(--mono); font-size: 9px; color: var(--muted); display: block; margin-bottom: 2px; }
+  .metric-chip-val { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--accent); }
+  .metric-chip-val.danger { color: var(--danger); }
+
+  /* SLIDERS */
+  .slider-section { display: flex; gap: 12px; }
+  .slider-group { flex: 1; }
+  .slider-label { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 9px; color: var(--muted); margin-bottom: 4px; }
+  .slider-val { color: var(--accent); }
+  input[type=range] { width: 100%; -webkit-appearance: none; height: 3px; background: var(--border2); border-radius: 2px; outline: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+
+  .img-result-banner { display: none; padding: 8px 10px; border-radius: 7px; font-family: var(--mono); font-size: 10px; margin-bottom: 8px; border: 1px solid; }
+  .img-result-banner.rod { background: rgba(255,71,87,0.1); color: var(--danger); border-color: rgba(255,71,87,0.3); }
+  .img-result-banner.safe { background: rgba(0,229,160,0.08); color: var(--accent); border-color: rgba(0,229,160,0.3); }
+
+  .processing-msg { font-family: var(--mono); font-size: 11px; color: var(--warn); text-align: center; padding: 8px 0; display: none; }
+
+  /* CAMERA SELECTOR (mobile front/back) */
+  .camera-toggle { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); border-radius: 8px; padding: 11px 10px; font-size: 18px; cursor: pointer; -webkit-tap-highlight-color: transparent; flex-shrink: 0; }
+  .camera-toggle:active { transform: scale(0.95); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🎯</div>
+    <div>
+      <span class="logo-text">RodGuard AI</span>
+      <span class="logo-sub">Vishwakarma University · BTech AI/ML</span>
+    </div>
+  </div>
+  <div class="status-pill" id="statusPill">
+    <div class="status-dot"></div>
+    <span id="statusText">Offline</span>
+  </div>
+</header>
+
+<div class="mode-tabs">
+  <button class="mode-tab active" id="tabLive" onclick="switchMode('live')">▶ LIVE CAMERA</button>
+  <button class="mode-tab" id="tabImage" onclick="switchMode('image')">⬆ IMAGE UPLOAD</button>
+</div>
+
+<main>
+  <!-- LIVE CAMERA VIEW -->
+  <div class="view-panel active" id="livePanel">
+    <div class="media-area">
+      <video id="videoEl" autoplay muted playsinline></video>
+      <canvas id="liveCanvas"></canvas>
+      <div class="placeholder" id="livePlaceholder">
+        <div class="ph-icon">📷</div>
+        <p>Tap Start Camera to begin real-time rod detection</p>
+      </div>
+      <div class="alert-overlay" id="liveAlert"></div>
+      <div class="conf-bar-container" id="liveConfBar" style="display:none">
+        <div class="conf-label"><span>ROD PROBABILITY</span><span id="liveConfPct">0%</span></div>
+        <div class="conf-bar-bg"><div class="conf-bar-fill" id="liveConfFill"></div></div>
+      </div>
+    </div>
+    <div class="controls-panel">
+      <div class="det-badge" id="detBadge">
+        <span class="det-badge-icon" id="detIcon">🟡</span>
+        <div class="det-badge-info">
+          <div class="det-badge-label">DETECTION STATUS</div>
+          <div class="det-badge-value" id="detValue">Waiting...</div>
+        </div>
+        <span class="det-score" id="detScore">—</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="startBtn" onclick="startCamera()">▶ Start</button>
+        <button class="btn btn-danger" id="stopBtn" onclick="stopCamera()" disabled>■ Stop</button>
+        <button class="camera-toggle" id="flipBtn" onclick="flipCamera()" title="Flip camera">🔄</button>
+      </div>
+      <div class="metrics-row">
+        <div class="metric-chip"><span class="metric-chip-label">FPS</span><span class="metric-chip-val" id="fpsVal">—</span></div>
+        <div class="metric-chip"><span class="metric-chip-label">POSE CONF</span><span class="metric-chip-val" id="poseConf">—</span></div>
+        <div class="metric-chip"><span class="metric-chip-label">ARM L</span><span class="metric-chip-val" id="armL">—</span></div>
+        <div class="metric-chip"><span class="metric-chip-label">ARM R</span><span class="metric-chip-val" id="armR">—</span></div>
+        <div class="metric-chip"><span class="metric-chip-label">ALERTS</span><span class="metric-chip-val danger" id="alertCount">0</span></div>
+      </div>
+      <div class="slider-section">
+        <div class="slider-group">
+          <div class="slider-label"><span>Threshold (px)</span><span class="slider-val" id="threshVal">80</span></div>
+          <input type="range" min="30" max="200" value="80" step="1" oninput="rodThreshold=+this.value;document.getElementById('threshVal').textContent=this.value">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span>Angle Sensitivity</span><span class="slider-val" id="angleVal">25°</span></div>
+          <input type="range" min="5" max="60" value="25" step="1" oninput="angleSensitivity=+this.value;document.getElementById('angleVal').textContent=this.value+'°'">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMAGE UPLOAD VIEW -->
+  <div class="view-panel" id="imagePanel">
+    <div class="media-area" id="imageArea">
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()" ondragover="ev.preventDefault()" ondrop="onDrop(event)">
+        <div class="dz-icon">🖼</div>
+        <p>Tap to upload an image from your gallery or camera</p>
+        <small>JPG · PNG · WEBP · HEIC</small>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" capture onchange="handleFileSelect(event)">
+      <canvas id="imgCanvas"></canvas>
+      <div class="alert-overlay" id="imgAlert"></div>
+      <div class="conf-bar-container" id="imgConfBar" style="display:none">
+        <div class="conf-label"><span>ROD PROBABILITY</span><span id="imgConfPct">0%</span></div>
+        <div class="conf-bar-bg"><div class="conf-bar-fill" id="imgConfFill"></div></div>
+      </div>
+    </div>
+    <div class="controls-panel">
+      <div class="img-result-banner" id="imgResultBanner"></div>
+      <div class="processing-msg" id="processingMsg">⟳ Analyzing with MediaPipe...</div>
+      <div class="det-badge" id="imgDetBadge">
+        <span class="det-badge-icon" id="imgDetIcon">🟡</span>
+        <div class="det-badge-info">
+          <div class="det-badge-label">IMAGE ANALYSIS</div>
+          <div class="det-badge-value" id="imgDetValue">Upload an image</div>
+        </div>
+        <span class="det-score" id="imgDetScore">—</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-upload" onclick="triggerFileInput()">⬆ Upload / Camera</button>
+        <button class="btn btn-secondary" id="rerunBtn" onclick="rerunImage()" disabled>↻ Re-run</button>
+        <button class="btn btn-danger" id="clearBtn" onclick="clearImage()" disabled>✕ Clear</button>
+      </div>
+      <div class="slider-section">
+        <div class="slider-group">
+          <div class="slider-label"><span>Threshold (px)</span><span class="slider-val" id="imgThreshVal">80</span></div>
+          <input type="range" min="30" max="200" value="80" step="1" oninput="rodThreshold=+this.value;document.getElementById('imgThreshVal').textContent=this.value">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span>Angle Sensitivity</span><span class="slider-val" id="imgAngleVal">25°</span></div>
+          <input type="range" min="5" max="60" value="25" step="1" oninput="angleSensitivity=+this.value;document.getElementById('imgAngleVal').textContent=this.value+'°'">
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+<script>
+let pose = null, camera = null, stream = null;
+let isRunning = false, alertCount = 0;
+let rodThreshold = 80, angleSensitivity = 25;
+let lastFrameTime = Date.now(), fpsArr = [], lastRodState = false;
+let currentMode = 'live', lastImageFile = null, imagePose = null;
+let facingMode = 'user'; // front camera by default
+
+const videoEl = document.getElementById('videoEl');
+const liveCanvas = document.getElementById('liveCanvas');
+const liveCtx = liveCanvas.getContext('2d');
+const imgCanvas = document.getElementById('imgCanvas');
+const imgCtx = imgCanvas.getContext('2d');
+
+function triggerFileInput() {
+  // Remove capture attribute to give both gallery and camera option on mobile
+  document.getElementById('fileInput').removeAttribute('capture');
+  document.getElementById('fileInput').click();
+}
+
+function switchMode(mode) {
+  currentMode = mode;
+  document.getElementById('livePanel').classList.toggle('active', mode === 'live');
+  document.getElementById('imagePanel').classList.toggle('active', mode === 'image');
+  document.getElementById('tabLive').classList.toggle('active', mode === 'live');
+  document.getElementById('tabImage').classList.toggle('active', mode === 'image');
+}
+
+function setStatus(s) {
+  const pill = document.getElementById('statusPill');
+  const txt = document.getElementById('statusText');
+  pill.className = 'status-pill';
+  if (s === 'active') { pill.classList.add('active'); txt.textContent = 'Live'; }
+  else if (s === 'danger') { pill.classList.add('danger'); txt.textContent = 'Alert!'; }
+  else txt.textContent = 'Offline';
+}
+
+function dist(a, b) { return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2); }
+
+function vectorAngle(p1, p2, p3) {
+  const v1 = {x:p1.x-p2.x, y:p1.y-p2.y}, v2 = {x:p3.x-p2.x, y:p3.y-p2.y};
+  const dot = v1.x*v2.x + v1.y*v2.y;
+  const mag = Math.sqrt(v1.x**2+v1.y**2) * Math.sqrt(v2.x**2+v2.y**2);
+  return mag===0 ? 0 : Math.acos(Math.min(1, Math.max(-1, dot/mag))) * 180/Math.PI;
+}
+
+function armExtRatio(s, e, w) {
+  const parts = dist(s,e) + dist(e,w);
+  return parts===0 ? 0 : dist(s,w)/parts;
+}
+
+function analyzeRod(landmarks, W, H) {
+  if (!landmarks || landmarks.length < 33) return {rod:false, score:0};
+  const lm = landmarks;
+  const lS=lm[11],rS=lm[12],lE=lm[13],rE=lm[14],lW=lm[15],rW=lm[16];
+  const minV = 0.45;
+  const lVis = lW.visibility>minV && lE.visibility>minV && lS.visibility>minV;
+  const rVis = rW.visibility>minV && rE.visibility>minV && rS.visibility>minV;
+  let score=0, lExt=0, rExt=0;
+  if (lVis) {
+    lExt = armExtRatio(lS,lE,lW);
+    const ang = vectorAngle(lS,lE,lW);
+    if (lExt>0.82) score+=25;
+    if (ang>180-angleSensitivity) score+=20;
+    if (dist(lW,lE)*W>rodThreshold*0.8) score+=15;
+  }
+  if (rVis) {
+    rExt = armExtRatio(rS,rE,rW);
+    const ang = vectorAngle(rS,rE,rW);
+    if (rExt>0.82) score+=25;
+    if (ang>180-angleSensitivity) score+=20;
+    if (dist(rW,rE)*W>rodThreshold*0.8) score+=15;
+  }
+  if (lVis && rVis) {
+    if (dist(lW,rW)*W>rodThreshold*1.2) score+=30;
+    if ((lW.y+rW.y)/2 < (lS.y+rS.y)/2+0.1) score+=10;
+  }
+  score = Math.min(100, score);
+  document.getElementById('armL').textContent = Math.round(lExt*100)+'%';
+  document.getElementById('armR').textContent = Math.round(rExt*100)+'%';
+  return {rod: score>=55, score, lExt, rExt};
+}
+
+function drawSkeleton(ctx, landmarks, W, H, rodDetected) {
+  const conns = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[15,17],[15,19],[16,18],[16,20]];
+  const col = rodDetected ? '#ff4757' : '#00e5a0';
+  const dim = rodDetected ? 'rgba(255,71,87,0.3)' : 'rgba(0,229,160,0.3)';
+  conns.forEach(([a,b]) => {
+    if (!landmarks[a]||!landmarks[b]||landmarks[a].visibility<0.4||landmarks[b].visibility<0.4) return;
+    ctx.beginPath(); ctx.moveTo(landmarks[a].x*W, landmarks[a].y*H);
+    ctx.lineTo(landmarks[b].x*W, landmarks[b].y*H);
+    ctx.strokeStyle=dim; ctx.lineWidth=2; ctx.stroke();
+  });
+  [11,12,13,14,15,16,19,20].forEach(i => {
+    const lm=landmarks[i];
+    if (!lm||lm.visibility<0.4) return;
+    ctx.beginPath(); ctx.arc(lm.x*W, lm.y*H, 5, 0, Math.PI*2);
+    ctx.fillStyle=col; ctx.fill(); ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.stroke();
+  });
+  if (rodDetected) {
+    const lW=landmarks[15], rW=landmarks[16];
+    if (lW&&rW&&lW.visibility>0.5&&rW.visibility>0.5) {
+      ctx.beginPath(); ctx.moveTo(lW.x*W,lW.y*H); ctx.lineTo(rW.x*W,rW.y*H);
+      ctx.strokeStyle='#ff4757'; ctx.lineWidth=4; ctx.setLineDash([8,4]); ctx.stroke(); ctx.setLineDash([]);
+      ctx.font='bold 11px JetBrains Mono,monospace'; ctx.fillStyle='#ff4757'; ctx.textAlign='center';
+      ctx.fillText('⚠ ROD DETECTED', ((lW.x+rW.x)/2)*W, ((lW.y+rW.y)/2)*H-14);
+    }
+  }
+}
+
+function updateLiveBadge(rod, score) {
+  const badge = document.getElementById('detBadge');
+  const icon = document.getElementById('detIcon');
+  const val = document.getElementById('detValue');
+  const sc = document.getElementById('detScore');
+  sc.textContent = Math.round(score)+'/100';
+  if (rod) {
+    badge.className='det-badge detected'; icon.textContent='🚨';
+    val.textContent='ROD DETECTED'; val.className='det-badge-value danger-text';
+    document.getElementById('liveAlert').className='alert-overlay rod';
+    document.getElementById('liveAlert').textContent='⚠ WEAPON DETECTED';
+    setStatus('danger');
+  } else {
+    badge.className='det-badge safe'; icon.textContent='✅';
+    val.textContent='No Rod'; val.className='det-badge-value safe-text';
+    document.getElementById('liveAlert').className='alert-overlay no-rod';
+    document.getElementById('liveAlert').textContent='✓ CLEAR';
+    setStatus('active');
+  }
+  document.getElementById('liveConfBar').style.display='block';
+  const fill=document.getElementById('liveConfFill');
+  fill.style.width=score+'%';
+  fill.style.background = score>=55?'#ff4757':score>30?'#ffa502':'#00e5a0';
+  document.getElementById('liveConfPct').textContent=Math.round(score)+'%';
+}
+
+async function onLiveResults(results) {
+  const W=liveCanvas.width, H=liveCanvas.height;
+  liveCtx.save(); liveCtx.clearRect(0,0,W,H);
+  if (results.image) { liveCtx.drawImage(results.image,0,0,W,H); liveCtx.fillStyle='rgba(0,0,0,0.3)'; liveCtx.fillRect(0,0,W,H); }
+  const now=Date.now();
+  fpsArr.push(Math.round(1000/Math.max(1,now-lastFrameTime)));
+  if(fpsArr.length>10) fpsArr.shift();
+  document.getElementById('fpsVal').textContent=Math.round(fpsArr.reduce((a,b)=>a+b,0)/fpsArr.length)+'fps';
+  lastFrameTime=now;
+  if (results.poseLandmarks?.length>0) {
+    const avgVis=results.poseLandmarks.reduce((s,l)=>s+(l.visibility||0),0)/results.poseLandmarks.length;
+    document.getElementById('poseConf').textContent=Math.round(avgVis*100)+'%';
+    const {rod, score}=analyzeRod(results.poseLandmarks, W, H);
+    drawSkeleton(liveCtx, results.poseLandmarks, W, H, rod);
+    updateLiveBadge(rod, score);
+    if (rod&&!lastRodState) { alertCount++; document.getElementById('alertCount').textContent=alertCount; }
+    lastRodState=rod;
+  } else {
+    liveCtx.font='13px monospace'; liveCtx.fillStyle='rgba(255,255,255,0.3)'; liveCtx.textAlign='center';
+    liveCtx.fillText('No person in frame', W/2, H/2);
+    document.getElementById('liveAlert').className='alert-overlay'; setStatus('active');
+  }
+  liveCtx.restore();
+}
+
+async function startCamera() {
+  if (typeof Pose==='undefined') { alert('MediaPipe is loading, please wait and try again.'); return; }
+  try {
+    if (stream) { stream.getTracks().forEach(t=>t.stop()); }
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facingMode, width:{ideal:640}, height:{ideal:480} },
+      audio: false
+    });
+    videoEl.srcObject=stream; videoEl.style.display='block';
+    document.getElementById('livePlaceholder').style.display='none';
+    document.getElementById('startBtn').disabled=true;
+    document.getElementById('stopBtn').disabled=false;
+    isRunning=true;
+    if (!pose) {
+      pose=new Pose({locateFile: f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`});
+      pose.setOptions({modelComplexity:1,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
+      pose.onResults(onLiveResults);
+    }
+    camera=new Camera(videoEl, {
+      onFrame: async ()=>{
+        liveCanvas.width=videoEl.videoWidth||640; liveCanvas.height=videoEl.videoHeight||480;
+        if (pose&&isRunning) await pose.send({image:videoEl});
+      }, width:640, height:480
+    });
+    await camera.start(); setStatus('active');
+  } catch(err) { alert('Camera error: '+err.message); }
+}
+
+function stopCamera() {
+  isRunning=false;
+  if(camera){camera.stop();camera=null;}
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  videoEl.srcObject=null; videoEl.style.display='none';
+  document.getElementById('livePlaceholder').style.display='flex';
+  document.getElementById('startBtn').disabled=false;
+  document.getElementById('stopBtn').disabled=true;
+  document.getElementById('liveAlert').className='alert-overlay';
+  document.getElementById('liveConfBar').style.display='none';
+  liveCtx.clearRect(0,0,liveCanvas.width,liveCanvas.height);
+  setStatus('');
+}
+
+async function flipCamera() {
+  facingMode = facingMode==='user' ? 'environment' : 'user';
+  if (isRunning) { await stopCamera(); await startCamera(); }
+}
+
+function onDrop(e) { e.preventDefault(); const f=e.dataTransfer.files[0]; if(f&&f.type.startsWith('image/')) processImageFile(f); }
+function handleFileSelect(e) { const f=e.target.files[0]; if(f) processImageFile(f); e.target.value=''; }
+
+function processImageFile(file) {
+  lastImageFile=file;
+  document.getElementById('dropZone').style.display='none';
+  document.getElementById('processingMsg').style.display='block';
+  document.getElementById('imgResultBanner').style.display='none';
+  document.getElementById('rerunBtn').disabled=true;
+  document.getElementById('clearBtn').disabled=true;
+  const reader=new FileReader();
+  reader.onload=e=>{ const img=new Image(); img.onload=()=>runImagePose(img); img.src=e.target.result; };
+  reader.readAsDataURL(file);
+}
+
+async function runImagePose(img) {
+  if (typeof Pose==='undefined') { alert('MediaPipe not loaded yet.'); document.getElementById('processingMsg').style.display='none'; return; }
+  imgCanvas.width=img.naturalWidth||img.width;
+  imgCanvas.height=img.naturalHeight||img.height;
+  imgCtx.drawImage(img,0,0);
+  imgCanvas.style.display='block'; imgCanvas.style.maxWidth='100%'; imgCanvas.style.maxHeight='100%';
+  if (!imagePose) {
+    imagePose=new Pose({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`});
+    imagePose.setOptions({modelComplexity:1,smoothLandmarks:false,enableSegmentation:false,minDetectionConfidence:0.4,minTrackingConfidence:0.4});
+  }
+  let done=false;
+  imagePose.onResults(results=>{
+    if(done) return; done=true;
+    document.getElementById('processingMsg').style.display='none';
+    document.getElementById('rerunBtn').disabled=false;
+    document.getElementById('clearBtn').disabled=false;
+    const W=imgCanvas.width, H=imgCanvas.height;
+    imgCtx.clearRect(0,0,W,H); imgCtx.drawImage(img,0,0);
+    imgCtx.fillStyle='rgba(0,0,0,0.3)'; imgCtx.fillRect(0,0,W,H);
+    const banner=document.getElementById('imgResultBanner');
+    const iBadge=document.getElementById('imgDetBadge');
+    const iIcon=document.getElementById('imgDetIcon');
+    const iVal=document.getElementById('imgDetValue');
+    const iSc=document.getElementById('imgDetScore');
+    if (results.poseLandmarks?.length>0) {
+      const {rod, score}=analyzeRod(results.poseLandmarks, W, H);
+      drawSkeleton(imgCtx, results.poseLandmarks, W, H, rod);
+      iSc.textContent=Math.round(score)+'/100';
+      document.getElementById('imgConfBar').style.display='block';
+      const fill=document.getElementById('imgConfFill');
+      fill.style.width=score+'%'; fill.style.background=score>=55?'#ff4757':score>30?'#ffa502':'#00e5a0';
+      document.getElementById('imgConfPct').textContent=Math.round(score)+'%';
+      document.getElementById('imgAlert').className='alert-overlay '+(rod?'rod':'no-rod');
+      document.getElementById('imgAlert').textContent=rod?'⚠ WEAPON DETECTED':'✓ CLEAR';
+      if (rod) {
+        iBadge.className='det-badge detected'; iIcon.textContent='🚨';
+        iVal.textContent='ROD DETECTED'; iVal.className='det-badge-value danger-text';
+        banner.className='img-result-banner rod';
+        banner.textContent='⚠ Rod detected in image — score: '+Math.round(score)+'/100';
+        alertCount++; document.getElementById('alertCount').textContent=alertCount;
+      } else {
+        iBadge.className='det-badge safe'; iIcon.textContent='✅';
+        iVal.textContent='No Rod'; iVal.className='det-badge-value safe-text';
+        banner.className='img-result-banner safe';
+        banner.textContent='✓ No rod detected — score: '+Math.round(score)+'/100';
+      }
+      banner.style.display='block';
+    } else {
+      imgCtx.font='14px monospace'; imgCtx.fillStyle='rgba(255,255,255,0.4)'; imgCtx.textAlign='center';
+      imgCtx.fillText('No person detected', W/2, H/2);
+      iBadge.className='det-badge'; iIcon.textContent='🔍'; iVal.textContent='No person found'; iVal.className='det-badge-value';
+      banner.className='img-result-banner safe'; banner.textContent='ℹ No person/pose found in this image.'; banner.style.display='block';
+      document.getElementById('imgAlert').className='alert-overlay';
+    }
+  });
+  await imagePose.send({image: img});
+}
+
+function rerunImage() {
+  if(!lastImageFile) return;
+  document.getElementById('processingMsg').style.display='block';
+  document.getElementById('rerunBtn').disabled=true;
+  const reader=new FileReader();
+  reader.onload=e=>{ const img=new Image(); img.onload=()=>runImagePose(img); img.src=e.target.result; };
+  reader.readAsDataURL(lastImageFile);
+}
+
+function clearImage() {
+  lastImageFile=null;
+  imgCtx.clearRect(0,0,imgCanvas.width,imgCanvas.height);
+  imgCanvas.style.display='none';
+  document.getElementById('dropZone').style.display='flex';
+  document.getElementById('imgAlert').className='alert-overlay';
+  document.getElementById('imgConfBar').style.display='none';
+  document.getElementById('imgResultBanner').style.display='none';
+  document.getElementById('rerunBtn').disabled=true;
+  document.getElementById('clearBtn').disabled=true;
+  document.getElementById('imgDetBadge').className='det-badge';
+  document.getElementById('imgDetIcon').textContent='🟡';
+  document.getElementById('imgDetValue').textContent='Upload an image';
+  document.getElementById('imgDetValue').className='det-badge-value';
+  document.getElementById('imgDetScore').textContent='—';
+}
+</script>
+</body>
+</html>
