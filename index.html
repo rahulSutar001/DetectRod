@@ -249,19 +249,39 @@
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+<script type="module">
+import { ObjectDetector, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.2/vision_bundle.mjs";
+window.ObjectDetector = ObjectDetector;
+window.FilesetResolver = FilesetResolver;
+</script>
 <script>
-let pose = null, camera = null, stream = null;
+let pose = null, camera = null, stream = null, objectDetector = null;
 let isRunning = false, alertCount = 0;
 let rodThreshold = 80, angleSensitivity = 25;
 let lastFrameTime = Date.now(), fpsArr = [], lastRodState = false;
 let currentMode = 'live', lastImageFile = null, imagePose = null;
-let facingMode = 'user'; // front camera by default
+let facingMode = 'user'; 
 
 const videoEl = document.getElementById('videoEl');
 const liveCanvas = document.getElementById('liveCanvas');
 const liveCtx = liveCanvas.getContext('2d');
 const imgCanvas = document.getElementById('imgCanvas');
 const imgCtx = imgCanvas.getContext('2d');
+
+async function initObjectDetector() {
+  if (objectDetector) return;
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.2/wasm"
+  );
+  objectDetector = await ObjectDetector.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath: `https://storage.googleapis.com/mediapipe-tasks/object_detector/efficientdet_lite0_uint8.tflite`,
+      delegate: "GPU"
+    },
+    scoreThreshold: 0.3,
+    runningMode: currentMode === 'live' ? "VIDEO" : "IMAGE"
+  });
+}
 
 function triggerFileInput() {
   // Remove capture attribute to give both gallery and camera option on mobile
@@ -300,36 +320,70 @@ function armExtRatio(s, e, w) {
   return parts===0 ? 0 : dist(s,w)/parts;
 }
 
-function analyzeRod(landmarks, W, H) {
+function analyzeRod(landmarks, detections, W, H) {
   if (!landmarks || landmarks.length < 33) return {rod:false, score:0};
   const lm = landmarks;
   const lS=lm[11],rS=lm[12],lE=lm[13],rE=lm[14],lW=lm[15],rW=lm[16];
   const minV = 0.45;
   const lVis = lW.visibility>minV && lE.visibility>minV && lS.visibility>minV;
   const rVis = rW.visibility>minV && rE.visibility>minV && rS.visibility>minV;
-  let score=0, lExt=0, rExt=0;
+  
+  let poseScore=0, lExt=0, rExt=0;
   if (lVis) {
     lExt = armExtRatio(lS,lE,lW);
     const ang = vectorAngle(lS,lE,lW);
-    if (lExt>0.82) score+=25;
-    if (ang>180-angleSensitivity) score+=20;
-    if (dist(lW,lE)*W>rodThreshold*0.8) score+=15;
+    if (lExt>0.82) poseScore+=25;
+    if (ang>180-angleSensitivity) poseScore+=20;
   }
   if (rVis) {
     rExt = armExtRatio(rS,rE,rW);
     const ang = vectorAngle(rS,rE,rW);
-    if (rExt>0.82) score+=25;
-    if (ang>180-angleSensitivity) score+=20;
-    if (dist(rW,rE)*W>rodThreshold*0.8) score+=15;
+    if (rExt>0.82) poseScore+=25;
+    if (ang>180-angleSensitivity) poseScore+=20;
   }
-  if (lVis && rVis) {
-    if (dist(lW,rW)*W>rodThreshold*1.2) score+=30;
-    if ((lW.y+rW.y)/2 < (lS.y+rS.y)/2+0.1) score+=10;
+  
+  // OBJECT DETECTION LOGIC
+  let hasObjectNearHand = false;
+  let objectScore = 0;
+  
+  if (detections && detections.length > 0) {
+    detections.forEach(det => {
+      const bbox = det.boundingBox;
+      const categories = det.categories;
+      const isRodLike = categories.some(c => 
+        ['baseball bat', 'umbrella', 'stick', 'pole', 'bottle'].includes(c.categoryName.toLowerCase()) ||
+        (bbox.width / bbox.height > 4) || (bbox.height / bbox.width > 4)
+      );
+      
+      if (isRodLike) {
+        // Check if object is near left or right wrist
+        const detCenterX = (bbox.originX + bbox.width/2) / W;
+        const detCenterY = (bbox.originY + bbox.height/2) / H;
+        
+        const distL = lVis ? Math.sqrt((lW.x - detCenterX)**2 + (lW.y - detCenterY)**2) : 1;
+        const distR = rVis ? Math.sqrt((rW.x - detCenterX)**2 + (rW.y - detCenterY)**2) : 1;
+        
+        if (distL < 0.15 || distR < 0.15) {
+          hasObjectNearHand = true;
+          objectScore = Math.max(objectScore, categories[0].score * 100);
+        }
+      }
+    });
   }
-  score = Math.min(100, score);
+
+  // Combined Score: Higher if both pose and object match
+  let finalScore = 0;
+  if (hasObjectNearHand) {
+    finalScore = 50 + (poseScore * 0.5); // At least 50 if object found near hand
+  } else {
+    finalScore = poseScore * 0.4; // Low score if no object found near hand, even if pose looks right
+  }
+
+  finalScore = Math.min(100, finalScore);
   document.getElementById('armL').textContent = Math.round(lExt*100)+'%';
   document.getElementById('armR').textContent = Math.round(rExt*100)+'%';
-  return {rod: score>=55, score, lExt, rExt};
+  
+  return {rod: finalScore >= 55, score: finalScore, lExt, rExt};
 }
 
 function drawSkeleton(ctx, landmarks, W, H, rodDetected) {
@@ -367,15 +421,15 @@ function updateLiveBadge(rod, score) {
   sc.textContent = Math.round(score)+'/100';
   if (rod) {
     badge.className='det-badge detected'; icon.textContent='🚨';
-    val.textContent='ROD DETECTED'; val.className='det-badge-value danger-text';
+    val.textContent='The person is holding rod'; val.className='det-badge-value danger-text';
     document.getElementById('liveAlert').className='alert-overlay rod';
-    document.getElementById('liveAlert').textContent='⚠ WEAPON DETECTED';
+    document.getElementById('liveAlert').textContent='⚠ The person is holding rod';
     setStatus('danger');
   } else {
     badge.className='det-badge safe'; icon.textContent='✅';
-    val.textContent='No Rod'; val.className='det-badge-value safe-text';
+    val.textContent='The person is not holding rod'; val.className='det-badge-value safe-text';
     document.getElementById('liveAlert').className='alert-overlay no-rod';
-    document.getElementById('liveAlert').textContent='✓ CLEAR';
+    document.getElementById('liveAlert').textContent='✓ The person is not holding rod';
     setStatus('active');
   }
   document.getElementById('liveConfBar').style.display='block';
@@ -397,7 +451,14 @@ async function onLiveResults(results) {
   if (results.poseLandmarks?.length>0) {
     const avgVis=results.poseLandmarks.reduce((s,l)=>s+(l.visibility||0),0)/results.poseLandmarks.length;
     document.getElementById('poseConf').textContent=Math.round(avgVis*100)+'%';
-    const {rod, score}=analyzeRod(results.poseLandmarks, W, H);
+    
+    // Run Object Detection if initialized
+    let detections = [];
+    if (objectDetector && isRunning) {
+      detections = objectDetector.detectForVideo(videoEl, performance.now()).detections;
+    }
+    
+    const {rod, score}=analyzeRod(results.poseLandmarks, detections, W, H);
     drawSkeleton(liveCtx, results.poseLandmarks, W, H, rod);
     updateLiveBadge(rod, score);
     if (rod&&!lastRodState) { alertCount++; document.getElementById('alertCount').textContent=alertCount; }
@@ -412,6 +473,7 @@ async function onLiveResults(results) {
 
 async function startCamera() {
   if (typeof Pose==='undefined') { alert('MediaPipe is loading, please wait and try again.'); return; }
+  await initObjectDetector();
   try {
     if (stream) { stream.getTracks().forEach(t=>t.stop()); }
     stream = await navigator.mediaDevices.getUserMedia({
@@ -474,6 +536,7 @@ function processImageFile(file) {
 
 async function runImagePose(img) {
   if (typeof Pose==='undefined') { alert('MediaPipe not loaded yet.'); document.getElementById('processingMsg').style.display='none'; return; }
+  await initObjectDetector();
   imgCanvas.width=img.naturalWidth||img.width;
   imgCanvas.height=img.naturalHeight||img.height;
   imgCtx.drawImage(img,0,0);
@@ -497,7 +560,11 @@ async function runImagePose(img) {
     const iVal=document.getElementById('imgDetValue');
     const iSc=document.getElementById('imgDetScore');
     if (results.poseLandmarks?.length>0) {
-      const {rod, score}=analyzeRod(results.poseLandmarks, W, H);
+      let detections = [];
+      if (objectDetector) {
+        detections = objectDetector.detect(img).detections;
+      }
+      const {rod, score}=analyzeRod(results.poseLandmarks, detections, W, H);
       drawSkeleton(imgCtx, results.poseLandmarks, W, H, rod);
       iSc.textContent=Math.round(score)+'/100';
       document.getElementById('imgConfBar').style.display='block';
@@ -508,15 +575,15 @@ async function runImagePose(img) {
       document.getElementById('imgAlert').textContent=rod?'⚠ WEAPON DETECTED':'✓ CLEAR';
       if (rod) {
         iBadge.className='det-badge detected'; iIcon.textContent='🚨';
-        iVal.textContent='ROD DETECTED'; iVal.className='det-badge-value danger-text';
+        iVal.textContent='The person is holding rod'; iVal.className='det-badge-value danger-text';
         banner.className='img-result-banner rod';
-        banner.textContent='⚠ Rod detected in image — score: '+Math.round(score)+'/100';
+        banner.textContent='⚠ The person is holding rod — score: '+Math.round(score)+'/100';
         alertCount++; document.getElementById('alertCount').textContent=alertCount;
       } else {
         iBadge.className='det-badge safe'; iIcon.textContent='✅';
-        iVal.textContent='No Rod'; iVal.className='det-badge-value safe-text';
+        iVal.textContent='The person is not holding rod'; iVal.className='det-badge-value safe-text';
         banner.className='img-result-banner safe';
-        banner.textContent='✓ No rod detected — score: '+Math.round(score)+'/100';
+        banner.textContent='✓ The person is not holding rod — score: '+Math.round(score)+'/100';
       }
       banner.style.display='block';
     } else {
