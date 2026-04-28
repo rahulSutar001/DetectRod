@@ -1,627 +1,2460 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0a0c10">
-<title>RodGuard AI</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;700;800&display=swap');
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #0a0c10; --surface: #11141a; --surface2: #191d26;
-    --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.13);
-    --accent: #00e5a0; --accent2: #00c4ff; --danger: #ff4757; --warn: #ffa502;
-    --text: #e8eaf0; --muted: #6b7280;
-    --mono: 'JetBrains Mono', monospace; --display: 'Syne', sans-serif;
-  }
-  html, body { height: 100%; overflow: hidden; }
-  body { font-family: var(--display); background: var(--bg); color: var(--text); display: flex; flex-direction: column; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0a0c10">
+  <title>RodGuard AI v3 — Self-Learning</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;700;800&display=swap');
 
-  /* HEADER */
-  header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);
-    background: var(--surface); flex-shrink: 0;
-    padding-top: max(0.75rem, env(safe-area-inset-top));
-  }
-  .logo { display: flex; align-items: center; gap: 8px; }
-  .logo-icon { width: 28px; height: 28px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 13px; }
-  .logo-text { font-size: 14px; font-weight: 800; letter-spacing: -0.3px; }
-  .logo-sub { font-family: var(--mono); font-size: 9px; color: var(--muted); display: block; }
-  .status-pill { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; padding: 4px 9px; border-radius: 20px; border: 1px solid var(--border2); background: var(--surface2); color: var(--muted); transition: all 0.3s; }
-  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); transition: all 0.3s; }
-  .status-pill.active { color: var(--accent); border-color: rgba(0,229,160,0.3); }
-  .status-pill.active .status-dot { background: var(--accent); animation: blink 1.5s infinite; }
-  .status-pill.danger { color: var(--danger); border-color: rgba(255,71,87,0.35); }
-  .status-pill.danger .status-dot { background: var(--danger); animation: blink 0.6s infinite; }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
 
-  /* TABS */
-  .mode-tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-  .mode-tab { flex: 1; padding: 10px 4px; font-family: var(--mono); font-size: 11px; text-align: center; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; transition: all 0.2s; background: none; border-top: none; border-left: none; border-right: none; letter-spacing: 0.3px; }
-  .mode-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    :root {
+      --bg: #0a0c10;
+      --surface: #11141a;
+      --surface2: #191d26;
+      --border: rgba(255, 255, 255, 0.07);
+      --border2: rgba(255, 255, 255, 0.13);
+      --accent: #00e5a0;
+      --accent2: #00c4ff;
+      --danger: #ff4757;
+      --warn: #ffa502;
+      --learn: #a78bfa;
+      --text: #e8eaf0;
+      --muted: #6b7280;
+      --mono: 'JetBrains Mono', monospace;
+      --display: 'Syne', sans-serif;
+    }
 
-  /* MAIN LAYOUT */
-  main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  .view-panel { display: none; flex-direction: column; flex: 1; overflow: hidden; }
-  .view-panel.active { display: flex; }
+    html,
+    body {
+      height: 100%;
+      overflow: hidden
+    }
 
-  /* VIDEO / IMAGE AREA */
-  .media-area { position: relative; background: #000; flex: 1; overflow: hidden; display: flex; align-items: center; justify-content: center; min-height: 0; }
-  #videoEl { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: none; }
-  #liveCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); }
+    body {
+      font-family: var(--display);
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column
+    }
 
-  .placeholder { display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--muted); text-align: center; padding: 1.5rem; }
-  .placeholder .ph-icon { font-size: 40px; }
-  .placeholder p { font-size: 13px; line-height: 1.5; max-width: 220px; }
+    #appShell {
+      display: flex;
+      flex-direction: column;
+      height: 100%
+    }
 
-  .drop-zone { display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--muted); text-align: center; padding: 1.5rem; cursor: pointer; border: 1.5px dashed var(--border2); border-radius: 12px; margin: 1rem; width: calc(100% - 2rem); transition: all 0.2s; }
-  .drop-zone:active { border-color: var(--accent); color: var(--accent); }
-  .drop-zone .dz-icon { font-size: 36px; }
-  .drop-zone p { font-size: 13px; line-height: 1.5; }
-  .drop-zone small { font-family: var(--mono); font-size: 10px; }
-  #fileInput { display: none; }
-  #imgCanvas { max-width: 100%; max-height: 100%; display: none; object-fit: contain; }
+    /* ── HEADER ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+      padding-top: max(0.75rem, env(safe-area-inset-top))
+    }
 
-  .alert-overlay { position: absolute; top: 0.75rem; left: 50%; transform: translateX(-50%); padding: 7px 14px; border-radius: 30px; font-family: var(--mono); font-size: 11px; font-weight: 600; pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 10; white-space: nowrap; }
-  .alert-overlay.rod { background: rgba(255,71,87,0.92); color: #fff; opacity: 1; }
-  .alert-overlay.no-rod { background: rgba(0,229,160,0.92); color: #000; opacity: 1; }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
 
-  .conf-bar-container { position: absolute; bottom: 0.6rem; left: 0.75rem; right: 0.75rem; z-index: 10; pointer-events: none; }
-  .conf-label { font-family: var(--mono); font-size: 9px; color: rgba(255,255,255,0.5); margin-bottom: 3px; display: flex; justify-content: space-between; }
-  .conf-bar-bg { height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
-  .conf-bar-fill { height: 100%; border-radius: 2px; background: var(--accent); width: 0%; transition: width 0.3s, background 0.3s; }
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px
+    }
 
-  /* BOTTOM CONTROLS PANEL */
-  .controls-panel { background: var(--surface); border-top: 1px solid var(--border); padding: 0.75rem 1rem; flex-shrink: 0; padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+    .logo-text {
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: -0.3px
+    }
 
-  /* DETECTION BADGE */
-  .det-badge { display: flex; align-items: center; gap: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 0.75rem; transition: all 0.3s; }
-  .det-badge.detected { border-color: rgba(255,71,87,0.5); background: rgba(255,71,87,0.1); }
-  .det-badge.safe { border-color: rgba(0,229,160,0.4); background: rgba(0,229,160,0.08); }
-  .det-badge-icon { font-size: 22px; }
-  .det-badge-info { flex: 1; }
-  .det-badge-label { font-family: var(--mono); font-size: 9px; color: var(--muted); }
-  .det-badge-value { font-size: 15px; font-weight: 800; }
-  .det-badge-value.danger-text { color: var(--danger); }
-  .det-badge-value.safe-text { color: var(--accent); }
-  .det-score { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+    .logo-sub {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--muted);
+      display: block
+    }
 
-  /* BUTTON ROW */
-  .btn-row { display: flex; gap: 8px; margin-bottom: 0.75rem; }
-  .btn { flex: 1; padding: 11px 8px; border-radius: 8px; border: none; cursor: pointer; font-family: var(--display); font-size: 12px; font-weight: 700; transition: all 0.15s; text-align: center; -webkit-tap-highlight-color: transparent; }
-  .btn:active { transform: scale(0.96); }
-  .btn-primary { background: var(--accent); color: #000; }
-  .btn-primary:disabled { opacity: 0.4; }
-  .btn-danger { background: rgba(255,71,87,0.12); color: var(--danger); border: 1px solid rgba(255,71,87,0.3); }
-  .btn-danger:disabled { opacity: 0.4; }
-  .btn-upload { background: rgba(0,196,255,0.1); color: var(--accent2); border: 1px solid rgba(0,196,255,0.3); }
-  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border2); }
-  .btn-secondary:disabled { opacity: 0.4; }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end
+    }
 
-  /* METRICS ROW */
-  .metrics-row { display: flex; gap: 6px; margin-bottom: 0.75rem; }
-  .metric-chip { flex: 1; background: var(--surface2); border-radius: 7px; padding: 6px 8px; text-align: center; }
-  .metric-chip-label { font-family: var(--mono); font-size: 9px; color: var(--muted); display: block; margin-bottom: 2px; }
-  .metric-chip-val { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--accent); }
-  .metric-chip-val.danger { color: var(--danger); }
+    /* ── PILLS ── */
+    .pill {
+      font-family: var(--mono);
+      font-size: 9px;
+      border-radius: 20px;
+      padding: 3px 8px;
+      display: none;
+      border: 1px solid
+    }
 
-  /* SLIDERS */
-  .slider-section { display: flex; gap: 12px; }
-  .slider-group { flex: 1; }
-  .slider-label { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 9px; color: var(--muted); margin-bottom: 4px; }
-  .slider-val { color: var(--accent); }
-  input[type=range] { width: 100%; -webkit-appearance: none; height: 3px; background: var(--border2); border-radius: 2px; outline: none; }
-  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+    .pill.show {
+      display: block
+    }
 
-  .img-result-banner { display: none; padding: 8px 10px; border-radius: 7px; font-family: var(--mono); font-size: 10px; margin-bottom: 8px; border: 1px solid; }
-  .img-result-banner.rod { background: rgba(255,71,87,0.1); color: var(--danger); border-color: rgba(255,71,87,0.3); }
-  .img-result-banner.safe { background: rgba(0,229,160,0.08); color: var(--accent); border-color: rgba(0,229,160,0.3); }
+    .pill-warn {
+      color: var(--warn);
+      background: rgba(255, 165, 2, 0.1);
+      border-color: rgba(255, 165, 2, 0.3)
+    }
 
-  .processing-msg { font-family: var(--mono); font-size: 11px; color: var(--warn); text-align: center; padding: 8px 0; display: none; }
+    .pill-local {
+      color: #a78bfa;
+      background: rgba(167, 139, 250, 0.1);
+      border-color: rgba(167, 139, 250, 0.3)
+    }
 
-  /* CAMERA SELECTOR (mobile front/back) */
-  .camera-toggle { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); border-radius: 8px; padding: 11px 10px; font-size: 18px; cursor: pointer; -webkit-tap-highlight-color: transparent; flex-shrink: 0; }
-  .camera-toggle:active { transform: scale(0.95); }
-</style>
+    .pill-learn {
+      color: var(--accent2);
+      background: rgba(0, 196, 255, 0.08);
+      border-color: rgba(0, 196, 255, 0.25)
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 4px 9px;
+      border-radius: 20px;
+      border: 1px solid var(--border2);
+      background: var(--surface2);
+      color: var(--muted);
+      transition: all .3s
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: all .3s
+    }
+
+    .status-pill.ready {
+      color: var(--accent2);
+      border-color: rgba(0, 196, 255, 0.3)
+    }
+
+    .status-pill.ready .status-dot {
+      background: var(--accent2)
+    }
+
+    .status-pill.active {
+      color: var(--accent);
+      border-color: rgba(0, 229, 160, 0.3)
+    }
+
+    .status-pill.active .status-dot {
+      background: var(--accent);
+      animation: blink 1.5s infinite
+    }
+
+    .status-pill.analyzing {
+      color: var(--warn);
+      border-color: rgba(255, 165, 2, 0.3)
+    }
+
+    .status-pill.analyzing .status-dot {
+      background: var(--warn);
+      animation: blink .8s infinite
+    }
+
+    .status-pill.danger {
+      color: var(--danger);
+      border-color: rgba(255, 71, 87, 0.35)
+    }
+
+    .status-pill.danger .status-dot {
+      background: var(--danger);
+      animation: blink .6s infinite
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .3
+      }
+    }
+
+    /* ── LEARNING PANEL ── */
+    .learn-panel {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.6rem 1rem;
+      flex-shrink: 0
+    }
+
+    .learn-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px
+    }
+
+    .learn-title {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--learn);
+      display: flex;
+      align-items: center;
+      gap: 6px
+    }
+
+    .learn-title .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--learn);
+      animation: blink 1.2s infinite
+    }
+
+    .learn-phase-badge {
+      font-family: var(--mono);
+      font-size: 9px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      border: 1px solid rgba(167, 139, 250, 0.3);
+      color: #a78bfa;
+      background: rgba(167, 139, 250, 0.08)
+    }
+
+    .learn-stats {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 7px
+    }
+
+    .learn-stat {
+      flex: 1;
+      background: var(--surface2);
+      border-radius: 6px;
+      padding: 5px 7px;
+      text-align: center
+    }
+
+    .learn-stat-label {
+      font-family: var(--mono);
+      font-size: 8px;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 1px
+    }
+
+    .learn-stat-val {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--learn)
+    }
+
+    .learn-stat-val.green {
+      color: var(--accent)
+    }
+
+    .learn-stat-val.red {
+      color: var(--danger)
+    }
+
+    .learn-stat-val.blue {
+      color: var(--accent2)
+    }
+
+    /* ── MULTI-SEGMENT PROGRESS BAR ── */
+    .phase-bar-wrap {
+      margin-bottom: 5px
+    }
+
+    .phase-bar-labels {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 8px;
+      color: var(--muted);
+      margin-bottom: 3px
+    }
+
+    .phase-bar-bg {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 3px;
+      overflow: hidden;
+      position: relative
+    }
+
+    .phase-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width .5s ease;
+      background: linear-gradient(90deg, #a78bfa, #00c4ff)
+    }
+
+    .phase-markers {
+      display: flex;
+      margin-top: 2px
+    }
+
+    .phase-marker {
+      flex: 1;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 7px;
+      color: var(--muted);
+      position: relative
+    }
+
+    .phase-marker.active {
+      color: var(--learn)
+    }
+
+    .phase-marker::before {
+      content: '';
+      position: absolute;
+      top: -8px;
+      left: 50%;
+      width: 1px;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.15)
+    }
+
+    /* ── ACCURACY MINI-CHART ── */
+    .acc-row {
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    .acc-chart-wrap {
+      flex: 1;
+      height: 28px;
+      position: relative
+    }
+
+    #accCanvas {
+      width: 100%;
+      height: 28px;
+      display: block
+    }
+
+    .acc-label {
+      font-family: var(--mono);
+      font-size: 8px;
+      color: var(--muted)
+    }
+
+    .acc-val {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      font-weight: 700;
+      min-width: 38px;
+      text-align: right
+    }
+
+    /* ── LAST LEARN EVENT ── */
+    .last-learn {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: rgba(255, 255, 255, 0.3);
+      margin-top: 4px;
+      height: 12px;
+      overflow: hidden;
+      transition: color .3s
+    }
+
+    .last-learn.flash {
+      color: var(--learn)
+    }
+
+    /* ── EXPORT BUTTON ── */
+    .export-btn {
+      font-family: var(--mono);
+      font-size: 9px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(0, 229, 160, 0.3);
+      background: rgba(0, 229, 160, 0.06);
+      color: var(--accent);
+      cursor: pointer;
+      display: none;
+      transition: all .15s
+    }
+
+    .export-btn.show {
+      display: block
+    }
+
+    .export-btn:active {
+      transform: scale(.96)
+    }
+
+    /* ── MODE TABS ── */
+    .mode-tabs {
+      display: flex;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0
+    }
+
+    .mode-tab {
+      flex: 1;
+      padding: 10px 4px;
+      font-family: var(--mono);
+      font-size: 11px;
+      text-align: center;
+      cursor: pointer;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      transition: all .2s;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none
+    }
+
+    .mode-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent)
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden
+    }
+
+    .view-panel {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden
+    }
+
+    .view-panel.active {
+      display: flex
+    }
+
+    /* ── MEDIA AREA ── */
+    .media-area {
+      position: relative;
+      background: #000;
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0
+    }
+
+    #videoEl {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none
+    }
+
+    #liveCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover
+    }
+
+    #debugCanvas {
+      position: absolute;
+      bottom: .5rem;
+      right: .5rem;
+      width: 80px;
+      height: 80px;
+      border: 1.5px solid rgba(0, 196, 255, .5);
+      border-radius: 6px;
+      display: none;
+      z-index: 15;
+      object-fit: cover;
+      background: #000
+    }
+
+    #debugCanvas.show {
+      display: block
+    }
+
+    /* ── KNN INFERENCE OVERLAY (shows which stored example matched) ── */
+    .knn-match-overlay {
+      position: absolute;
+      bottom: .5rem;
+      left: .5rem;
+      right: 6.5rem;
+      background: rgba(0, 0, 0, .7);
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-family: var(--mono);
+      font-size: 9px;
+      color: rgba(255, 255, 255, .5);
+      display: none;
+      z-index: 16
+    }
+
+    .knn-match-overlay.show {
+      display: block
+    }
+
+    .knn-match-bar {
+      height: 2px;
+      background: var(--border2);
+      border-radius: 1px;
+      margin-top: 3px;
+      overflow: hidden
+    }
+
+    .knn-match-fill {
+      height: 100%;
+      border-radius: 1px;
+      background: var(--learn);
+      width: 0%;
+      transition: width .4s
+    }
+
+    .placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      text-align: center;
+      padding: 1.5rem
+    }
+
+    .placeholder .ph-icon {
+      font-size: 40px
+    }
+
+    .placeholder p {
+      font-size: 13px;
+      line-height: 1.5;
+      max-width: 220px
+    }
+
+    .groq-thinking {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, .6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 20
+    }
+
+    .groq-thinking.show {
+      display: flex
+    }
+
+    .thinking-spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(255, 255, 255, .1);
+      border-top-color: var(--accent2);
+      border-radius: 50%;
+      animation: spin .8s linear infinite
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    .thinking-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent2)
+    }
+
+    .drop-zone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      text-align: center;
+      padding: 1.5rem;
+      cursor: pointer;
+      border: 1.5px dashed var(--border2);
+      border-radius: 12px;
+      margin: 1rem;
+      width: calc(100% - 2rem);
+      transition: all .2s
+    }
+
+    .drop-zone:active {
+      border-color: var(--accent);
+      color: var(--accent)
+    }
+
+    .drop-zone .dz-icon {
+      font-size: 36px
+    }
+
+    .drop-zone p {
+      font-size: 13px;
+      line-height: 1.5
+    }
+
+    .drop-zone small {
+      font-family: var(--mono);
+      font-size: 10px
+    }
+
+    #fileInput {
+      display: none
+    }
+
+    #imgCanvas {
+      max-width: 100%;
+      max-height: 100%;
+      display: none
+    }
+
+    .alert-overlay {
+      position: absolute;
+      top: .75rem;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 7px 14px;
+      border-radius: 30px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .3s;
+      z-index: 10;
+      white-space: nowrap
+    }
+
+    .alert-overlay.rod {
+      background: rgba(255, 71, 87, .92);
+      color: #fff;
+      opacity: 1
+    }
+
+    .alert-overlay.no-rod {
+      background: rgba(0, 229, 160, .92);
+      color: #000;
+      opacity: 1
+    }
+
+    .conf-bar-container {
+      position: absolute;
+      bottom: .6rem;
+      left: .75rem;
+      right: .75rem;
+      z-index: 10;
+      pointer-events: none
+    }
+
+    .conf-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: rgba(255, 255, 255, .5);
+      margin-bottom: 3px;
+      display: flex;
+      justify-content: space-between
+    }
+
+    .conf-bar-bg {
+      height: 3px;
+      background: rgba(255, 255, 255, .1);
+      border-radius: 2px;
+      overflow: hidden
+    }
+
+    .conf-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: var(--accent);
+      width: 0%;
+      transition: width .4s, background .4s
+    }
+
+    .reasoning-box {
+      background: rgba(0, 196, 255, .06);
+      border: 1px solid rgba(0, 196, 255, .18);
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-bottom: .6rem;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: rgba(255, 255, 255, .55);
+      line-height: 1.5;
+      display: none;
+      max-height: 56px;
+      overflow-y: auto
+    }
+
+    .reasoning-box.show {
+      display: block
+    }
+
+    /* ── CONTROLS PANEL ── */
+    .controls-panel {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: .75rem 1rem;
+      flex-shrink: 0;
+      padding-bottom: max(.75rem, env(safe-area-inset-bottom))
+    }
+
+    .det-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: .75rem;
+      transition: all .3s
+    }
+
+    .det-badge.detected {
+      border-color: rgba(255, 71, 87, .5);
+      background: rgba(255, 71, 87, .1)
+    }
+
+    .det-badge.safe {
+      border-color: rgba(0, 229, 160, .4);
+      background: rgba(0, 229, 160, .08)
+    }
+
+    .det-badge.learning {
+      border-color: rgba(167, 139, 250, .4);
+      background: rgba(167, 139, 250, .08)
+    }
+
+    .det-badge-icon {
+      font-size: 22px
+    }
+
+    .det-badge-info {
+      flex: 1
+    }
+
+    .det-badge-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--muted)
+    }
+
+    .det-badge-value {
+      font-size: 15px;
+      font-weight: 800
+    }
+
+    .det-badge-value.danger-text {
+      color: var(--danger)
+    }
+
+    .det-badge-value.safe-text {
+      color: var(--accent)
+    }
+
+    .det-badge-value.learn-text {
+      color: var(--learn)
+    }
+
+    .det-score {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted)
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: .75rem
+    }
+
+    .btn {
+      flex: 1;
+      padding: 11px 8px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-family: var(--display);
+      font-size: 12px;
+      font-weight: 700;
+      transition: all .15s;
+      text-align: center;
+      -webkit-tap-highlight-color: transparent
+    }
+
+    .btn:active {
+      transform: scale(.96)
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000
+    }
+
+    .btn-primary:disabled {
+      opacity: .4
+    }
+
+    .btn-danger {
+      background: rgba(255, 71, 87, .12);
+      color: var(--danger);
+      border: 1px solid rgba(255, 71, 87, .3)
+    }
+
+    .btn-danger:disabled {
+      opacity: .4
+    }
+
+    .btn-upload {
+      background: rgba(0, 196, 255, .1);
+      color: var(--accent2);
+      border: 1px solid rgba(0, 196, 255, .3)
+    }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border2)
+    }
+
+    .btn-secondary:disabled {
+      opacity: .4
+    }
+
+    .camera-toggle {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 11px 10px;
+      font-size: 18px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      flex-shrink: 0
+    }
+
+    .camera-toggle:active {
+      transform: scale(.95)
+    }
+
+    .metrics-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: .75rem
+    }
+
+    .metric-chip {
+      flex: 1;
+      background: var(--surface2);
+      border-radius: 7px;
+      padding: 6px 8px;
+      text-align: center
+    }
+
+    .metric-chip-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 2px
+    }
+
+    .metric-chip-val {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent)
+    }
+
+    .metric-chip-val.danger {
+      color: var(--danger)
+    }
+
+    .slider-group {
+      flex: 1;
+      margin-bottom: .5rem
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--muted);
+      margin-bottom: 4px
+    }
+
+    .slider-val {
+      color: var(--accent)
+    }
+
+    input[type=range] {
+      width: 100%;
+      -webkit-appearance: none;
+      height: 3px;
+      background: var(--border2);
+      border-radius: 2px;
+      outline: none
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer
+    }
+
+    .img-result-banner {
+      display: none;
+      padding: 8px 10px;
+      border-radius: 7px;
+      font-family: var(--mono);
+      font-size: 10px;
+      margin-bottom: 8px;
+      border: 1px solid
+    }
+
+    .img-result-banner.rod {
+      background: rgba(255, 71, 87, .1);
+      color: var(--danger);
+      border-color: rgba(255, 71, 87, .3)
+    }
+
+    .img-result-banner.safe {
+      background: rgba(0, 229, 160, .08);
+      color: var(--accent);
+      border-color: rgba(0, 229, 160, .3)
+    }
+
+    .img-result-banner.info {
+      background: rgba(0, 196, 255, .08);
+      color: var(--accent2);
+      border-color: rgba(0, 196, 255, .3)
+    }
+
+    .processing-msg {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--warn);
+      text-align: center;
+      padding: 8px 0;
+      display: none
+    }
+
+    /* ── LEARN FLASH ANIMATION ── */
+    @keyframes learnFlash {
+      0% {
+        box-shadow: 0 0 0 0 rgba(167, 139, 250, .6)
+      }
+
+      70% {
+        box-shadow: 0 0 0 10px rgba(167, 139, 250, 0)
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(167, 139, 250, 0)
+      }
+    }
+
+    .learn-flash {
+      animation: learnFlash .6s ease-out
+    }
+
+    /* ── DATA EXPLORER ── */
+    .data-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 0 4px;
+      overflow-y: auto;
+      max-height: 400px;
+    }
+
+    .data-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 11px;
+      transition: all 0.2s;
+    }
+
+    .data-item:hover {
+      border-color: var(--accent2);
+      background: rgba(0, 196, 255, 0.04);
+    }
+
+    .data-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .data-tag {
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .data-tag.threat {
+      background: rgba(255, 71, 87, 0.1);
+      color: var(--danger);
+      border: 1px solid rgba(255, 71, 87, 0.3);
+    }
+
+    .data-tag.safe {
+      background: rgba(0, 229, 160, 0.1);
+      color: var(--accent);
+      border: 1px solid rgba(0, 229, 160, 0.3);
+    }
+
+    .data-meta {
+      color: var(--muted);
+      font-size: 9px;
+    }
+
+    .data-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .data-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+
+    .data-btn:hover {
+      background: rgba(255, 71, 87, 0.1);
+      color: var(--danger);
+    }
+
+    .empty-state {
+      padding: 40px;
+      text-align: center;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+  </style>
 </head>
+
 <body>
+  <div id="appShell">
+    <header>
+      <div class="logo">
+        <div class="logo-icon">🎯</div>
+        <div>
+          <span class="logo-text">RodGuard AI</span>
+          <span class="logo-sub">Vishwakarma University · BTech AI/ML · v3.0</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <span class="pill pill-warn" id="confirmBadge">⏳ 0/2</span>
+        <span class="pill pill-local" id="fallbackBadge">⚡ LOCAL</span>
+        <span class="pill pill-learn" id="learningBadge">🧠 LEARNING</span>
+        <div class="status-pill" id="statusPill">
+          <div class="status-dot"></div>
+          <span id="statusText">Ready</span>
+        </div>
+      </div>
+    </header>
 
-<header>
-  <div class="logo">
-    <div class="logo-icon">🎯</div>
-    <div>
-      <span class="logo-text">RodGuard AI</span>
-      <span class="logo-sub">Vishwakarma University · BTech AI/ML</span>
+    <!-- ══ SELF-LEARNING PROGRESS PANEL ══ -->
+    <div class="learn-panel" id="learnPanel">
+      <div class="learn-header">
+        <div class="learn-title">
+          <div class="dot"></div>
+          <span>SELF-LEARNING ENGINE</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="learn-phase-badge" id="phaseBadge">Phase 1 — Observing</span>
+          <button class="export-btn" id="exportBtn" onclick="exportDataset()">⬇ Export Dataset</button>
+        </div>
+      </div>
+
+      <div class="learn-stats">
+        <div class="learn-stat">
+          <span class="learn-stat-label">TOTAL EXAMPLES</span>
+          <span class="learn-stat-val" id="statTotal">0</span>
+        </div>
+        <div class="learn-stat">
+          <span class="learn-stat-label">THREATS</span>
+          <span class="learn-stat-val red" id="statThreats">0</span>
+        </div>
+        <div class="learn-stat">
+          <span class="learn-stat-label">SAFE</span>
+          <span class="learn-stat-val green" id="statSafe">0</span>
+        </div>
+        <div class="learn-stat">
+          <span class="learn-stat-label">KNN ACC</span>
+          <span class="learn-stat-val blue" id="statAcc">—</span>
+        </div>
+        <div class="learn-stat">
+          <span class="learn-stat-label">MODE</span>
+          <span class="learn-stat-val" id="statMode" style="font-size:9px;color:var(--muted)">GROQ ONLY</span>
+        </div>
+      </div>
+
+      <!-- Phase progress bar -->
+      <div class="phase-bar-wrap">
+        <div class="phase-bar-labels">
+          <span>0</span><span>10</span><span>50</span><span>100</span><span>200</span>
+        </div>
+        <div class="phase-bar-bg">
+          <div class="phase-bar-fill" id="phaseBarFill" style="width:0%"></div>
+        </div>
+        <div class="phase-markers">
+          <div class="phase-marker active" id="pm0">Observe</div>
+          <div class="phase-marker" id="pm1">Assist</div>
+          <div class="phase-marker" id="pm2">Solo</div>
+          <div class="phase-marker" id="pm3">Export</div>
+        </div>
+      </div>
+
+      <!-- Accuracy mini-chart -->
+      <div class="acc-row">
+        <span class="acc-label">Accuracy history</span>
+        <div class="acc-chart-wrap"><canvas id="accCanvas"></canvas></div>
+        <span class="acc-val" id="accVal">—</span>
+      </div>
+
+      <div class="last-learn" id="lastLearnMsg">Waiting for first Groq response to learn from…</div>
     </div>
+
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="tabLive" onclick="switchMode('live')">▶ LIVE CAMERA</button>
+      <button class="mode-tab" id="tabImage" onclick="switchMode('image')">⬆ IMAGE UPLOAD</button>
+      <button class="mode-tab" id="tabData" onclick="switchMode('data')">📊 MANAGE DATA</button>
+    </div>
+
+    <main>
+      <!-- ── LIVE CAMERA ── -->
+      <div class="view-panel active" id="livePanel">
+        <div class="media-area">
+          <video id="videoEl" autoplay muted playsinline></video>
+          <canvas id="liveCanvas"></canvas>
+          <canvas id="debugCanvas" title="Cropped region → API"></canvas>
+          <div class="placeholder" id="livePlaceholder">
+            <div class="ph-icon">📷</div>
+            <p>Tap <strong>Start</strong> to begin real-time detection with self-learning</p>
+          </div>
+          <div class="alert-overlay" id="liveAlert"></div>
+          <div class="knn-match-overlay" id="knnOverlay">
+            <span id="knnMatchText">KNN: —</span>
+            <div class="knn-match-bar">
+              <div class="knn-match-fill" id="knnMatchFill"></div>
+            </div>
+          </div>
+          <div class="groq-thinking" id="liveThinking">
+            <div class="thinking-spinner"></div>
+            <span class="thinking-label" id="thinkingLabel">Groq Vision analyzing…</span>
+          </div>
+          <div class="conf-bar-container" id="liveConfBar" style="display:none">
+            <div class="conf-label"><span id="confSource">GROQ CONFIDENCE</span><span id="liveConfPct">0%</span></div>
+            <div class="conf-bar-bg">
+              <div class="conf-bar-fill" id="liveConfFill"></div>
+            </div>
+          </div>
+        </div>
+        <div class="controls-panel">
+          <div class="reasoning-box" id="liveReasoning"></div>
+          <div class="det-badge" id="detBadge">
+            <span class="det-badge-icon" id="detIcon">🟡</span>
+            <div class="det-badge-info">
+              <div class="det-badge-label">DETECTION STATUS</div>
+              <div class="det-badge-value" id="detValue">Waiting...</div>
+            </div>
+            <span class="det-score" id="detScore">—</span>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="startBtn" onclick="startCamera()">▶ Start</button>
+            <button class="btn btn-danger" id="stopBtn" onclick="stopCamera()" disabled>■ Stop</button>
+            <button class="camera-toggle" onclick="flipCamera()">🔄</button>
+          </div>
+          <div class="metrics-row">
+            <div class="metric-chip"><span class="metric-chip-label">FPS</span><span class="metric-chip-val"
+                id="fpsVal">—</span></div>
+            <div class="metric-chip"><span class="metric-chip-label">POSE CONF</span><span class="metric-chip-val"
+                id="poseConf">—</span></div>
+            <div class="metric-chip"><span class="metric-chip-label">API CALLS</span><span class="metric-chip-val"
+                id="apiCalls">0</span></div>
+            <div class="metric-chip"><span class="metric-chip-label">LATENCY</span><span class="metric-chip-val"
+                id="apiLatency">—</span></div>
+            <div class="metric-chip"><span class="metric-chip-label">ALERTS</span><span class="metric-chip-val danger"
+                id="alertCount">0</span></div>
+          </div>
+          <div class="slider-group">
+            <div class="slider-label"><span>Min confidence to alert</span><span class="slider-val"
+                id="confThreshVal">70%</span></div>
+            <input type="range" min="40" max="95" value="70" step="5"
+              oninput="confThreshold=+this.value;document.getElementById('confThreshVal').textContent=this.value+'%'">
+          </div>
+          <div class="slider-group">
+            <div class="slider-label"><span>Scan interval</span><span class="slider-val" id="intervalVal">5s</span>
+            </div>
+            <input type="range" min="1" max="10" value="5" step="1"
+              oninput="groqInterval=+this.value*1000;document.getElementById('intervalVal').textContent=this.value+'s'">
+          </div>
+        </div>
+      </div>
+
+      <!-- ── IMAGE UPLOAD ── -->
+      <div class="view-panel" id="imagePanel">
+        <div class="media-area" id="imageArea">
+          <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()"
+            ondragover="event.preventDefault()" ondrop="onDrop(event)">
+            <div class="dz-icon">🖼</div>
+            <p>Tap to upload an image from your gallery or camera</p>
+            <small>JPG · PNG · WEBP · HEIC</small>
+          </div>
+          <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
+          <canvas id="imgCanvas"></canvas>
+          <div class="alert-overlay" id="imgAlert"></div>
+          <div class="groq-thinking" id="imgThinking">
+            <div class="thinking-spinner"></div>
+            <span class="thinking-label">Groq Vision analyzing…</span>
+          </div>
+          <div class="conf-bar-container" id="imgConfBar" style="display:none">
+            <div class="conf-label"><span>GROQ CONFIDENCE</span><span id="imgConfPct">0%</span></div>
+            <div class="conf-bar-bg">
+              <div class="conf-bar-fill" id="imgConfFill"></div>
+            </div>
+          </div>
+        </div>
+        <div class="controls-panel">
+          <div class="reasoning-box" id="imgReasoning"></div>
+          <div class="img-result-banner" id="imgResultBanner"></div>
+          <div class="processing-msg" id="processingMsg"
+            style="display:none; color:var(--accent2); font-family:var(--mono); font-size:10px; margin-top:10px; text-align:center;">
+            ⟳ Processing with Groq Vision…</div>
+          <div class="image-error" id="imageError"
+            style="display:none; color:var(--danger); font-family:var(--mono); font-size:10px; margin-top:10px; text-align:center;">
+          </div>
+          <div class="det-badge" id="imgDetBadge">
+            <span class="det-badge-icon" id="imgDetIcon">🟡</span>
+            <div class="det-badge-info">
+              <div class="det-badge-label">IMAGE ANALYSIS</div>
+              <div class="det-badge-value" id="imgDetValue">Upload an image</div>
+            </div>
+            <span class="det-score" id="imgDetScore">—</span>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-upload" onclick="triggerFileInput()">⬆ Upload / Camera</button>
+            <button class="btn btn-secondary" id="rerunBtn" onclick="rerunImage()" disabled>↻ Re-run</button>
+            <button class="btn btn-danger" id="clearBtn" onclick="clearImage()" disabled>✕ Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── DATA EXPLORER PANEL ── -->
+      <div id="dataPanel" class="view-panel"
+        style="flex-direction:column; background:var(--surface); height:100%; overflow:hidden;">
+        <div style="padding: 1rem; width: 100%; display: flex; flex-direction: column; height:100%;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h3 style="font-family:var(--display); font-size:14px; margin:0">Learned Dataset</h3>
+            <div style="display:flex; gap:8px">
+              <button class="btn btn-secondary" onclick="renderDataExplorer()" style="padding:4px 8px; font-size:10px">↻
+                Refresh</button>
+              <button class="btn btn-danger" onclick="clearAllData()" style="padding:4px 8px; font-size:10px">🗑 Wipe
+                All</button>
+            </div>
+          </div>
+          <div class="data-list" id="dataList" style="flex:1; overflow-y:auto;">
+            <!-- Items injected via JS -->
+            <div class="empty-state">No examples learned yet. Start scanning!</div>
+          </div>
+        </div>
+      </div>
+    </main>
   </div>
-  <div class="status-pill" id="statusPill">
-    <div class="status-dot"></div>
-    <span id="statusText">Offline</span>
-  </div>
-</header>
 
-<div class="mode-tabs">
-  <button class="mode-tab active" id="tabLive" onclick="switchMode('live')">▶ LIVE CAMERA</button>
-  <button class="mode-tab" id="tabImage" onclick="switchMode('image')">⬆ IMAGE UPLOAD</button>
-</div>
+  <!-- TensorFlow.js + MobileNet for feature extraction -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <!-- Replace with your actual config.js path -->
+  <script src="config.js"></script>
 
-<main>
-  <!-- LIVE CAMERA VIEW -->
-  <div class="view-panel active" id="livePanel">
-    <div class="media-area">
-      <video id="videoEl" autoplay muted playsinline></video>
-      <canvas id="liveCanvas"></canvas>
-      <div class="placeholder" id="livePlaceholder">
-        <div class="ph-icon">📷</div>
-        <p>Tap Start Camera to begin real-time rod detection</p>
-      </div>
-      <div class="alert-overlay" id="liveAlert"></div>
-      <div class="conf-bar-container" id="liveConfBar" style="display:none">
-        <div class="conf-label"><span>ROD PROBABILITY</span><span id="liveConfPct">0%</span></div>
-        <div class="conf-bar-bg"><div class="conf-bar-fill" id="liveConfFill"></div></div>
-      </div>
-    </div>
-    <div class="controls-panel">
-      <div class="det-badge" id="detBadge">
-        <span class="det-badge-icon" id="detIcon">🟡</span>
-        <div class="det-badge-info">
-          <div class="det-badge-label">DETECTION STATUS</div>
-          <div class="det-badge-value" id="detValue">Waiting...</div>
-        </div>
-        <span class="det-score" id="detScore">—</span>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-primary" id="startBtn" onclick="startCamera()">▶ Start</button>
-        <button class="btn btn-danger" id="stopBtn" onclick="stopCamera()" disabled>■ Stop</button>
-        <button class="camera-toggle" id="flipBtn" onclick="flipCamera()" title="Flip camera">🔄</button>
-      </div>
-      <div class="metrics-row">
-        <div class="metric-chip"><span class="metric-chip-label">FPS</span><span class="metric-chip-val" id="fpsVal">—</span></div>
-        <div class="metric-chip"><span class="metric-chip-label">POSE CONF</span><span class="metric-chip-val" id="poseConf">—</span></div>
-        <div class="metric-chip"><span class="metric-chip-label">ARM L</span><span class="metric-chip-val" id="armL">—</span></div>
-        <div class="metric-chip"><span class="metric-chip-label">ARM R</span><span class="metric-chip-val" id="armR">—</span></div>
-        <div class="metric-chip"><span class="metric-chip-label">ALERTS</span><span class="metric-chip-val danger" id="alertCount">0</span></div>
-      </div>
-      <div class="slider-section">
-        <div class="slider-group">
-          <div class="slider-label"><span>Threshold (px)</span><span class="slider-val" id="threshVal">80</span></div>
-          <input type="range" min="30" max="200" value="80" step="1" oninput="rodThreshold=+this.value;document.getElementById('threshVal').textContent=this.value">
-        </div>
-        <div class="slider-group">
-          <div class="slider-label"><span>Angle Sensitivity</span><span class="slider-val" id="angleVal">25°</span></div>
-          <input type="range" min="5" max="60" value="25" step="1" oninput="angleSensitivity=+this.value;document.getElementById('angleVal').textContent=this.value+'°'">
-        </div>
-      </div>
-    </div>
-  </div>
+  <script>
+    /* ═══════════════════════════════════════════════════════════════════════════
+       RodGuard AI v3.0 — Self-Learning via Knowledge Distillation
+       Vishwakarma University · BTech AI/ML
+    
+       NEW IN v3:
+       ─────────────────────────────────────────────────────────────────────────
+       SELF-LEARNING ENGINE (Knowledge Distillation)
+         • MobileNet v2 (frozen) extracts a 1280-dim feature vector per frame
+         • Every Groq response = one labeled training example stored in memory
+         • KNN classifier (k=5, cosine similarity) runs on those vectors
+         • The local model gets smarter with every single Groq API call
+         • Zero backprop, zero GPU — works entirely in the browser
+    
+       PHASE SYSTEM (4 phases based on example count)
+         Phase 1 (0–9):    GROQ ONLY — model observing, learning silently
+         Phase 2 (10–49):  ASSISTED — KNN runs alongside Groq, Groq wins ties
+         Phase 3 (50–99):  SOLO — KNN is primary, Groq only confirms uncertain
+         Phase 4 (100+):   EXPERT — KNN is primary + offline export available
+    
+       ACCURACY TRACKING
+         • Rolling cross-validation: each new example is tested against others
+         • Live accuracy curve renders on a mini canvas in the learning panel
+         • Compare Groq vs KNN predictions on every frame
+    
+       EXPORT
+         • Download labeled dataset as JSON when 100+ examples collected
+         • Format ready for offline YOLOv8/ResNet fine-tuning
+    ═══════════════════════════════════════════════════════════════════════════ */
 
-  <!-- IMAGE UPLOAD VIEW -->
-  <div class="view-panel" id="imagePanel">
-    <div class="media-area" id="imageArea">
-      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()" ondragover="ev.preventDefault()" ondrop="onDrop(event)">
-        <div class="dz-icon">🖼</div>
-        <p>Tap to upload an image from your gallery or camera</p>
-        <small>JPG · PNG · WEBP · HEIC</small>
-      </div>
-      <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
-      <canvas id="imgCanvas"></canvas>
-      <div class="alert-overlay" id="imgAlert"></div>
-      <div class="conf-bar-container" id="imgConfBar" style="display:none">
-        <div class="conf-label"><span>ROD PROBABILITY</span><span id="imgConfPct">0%</span></div>
-        <div class="conf-bar-bg"><div class="conf-bar-fill" id="imgConfFill"></div></div>
-      </div>
-    </div>
-    <div class="controls-panel">
-      <div class="img-result-banner" id="imgResultBanner"></div>
-      <div class="processing-msg" id="processingMsg">⟳ Analyzing with MediaPipe...</div>
-      <div class="det-badge" id="imgDetBadge">
-        <span class="det-badge-icon" id="imgDetIcon">🟡</span>
-        <div class="det-badge-info">
-          <div class="det-badge-label">IMAGE ANALYSIS</div>
-          <div class="det-badge-value" id="imgDetValue">Upload an image</div>
-        </div>
-        <span class="det-score" id="imgDetScore">—</span>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-upload" onclick="triggerFileInput()">⬆ Upload / Camera</button>
-        <button class="btn btn-secondary" id="rerunBtn" onclick="rerunImage()" disabled>↻ Re-run</button>
-        <button class="btn btn-danger" id="clearBtn" onclick="clearImage()" disabled>✕ Clear</button>
-      </div>
-      <div class="slider-section">
-        <div class="slider-group">
-          <div class="slider-label"><span>Threshold (px)</span><span class="slider-val" id="imgThreshVal">80</span></div>
-          <input type="range" min="30" max="200" value="80" step="1" oninput="rodThreshold=+this.value;document.getElementById('imgThreshVal').textContent=this.value">
-        </div>
-        <div class="slider-group">
-          <div class="slider-label"><span>Angle Sensitivity</span><span class="slider-val" id="imgAngleVal">25°</span></div>
-          <input type="range" min="5" max="60" value="25" step="1" oninput="angleSensitivity=+this.value;document.getElementById('imgAngleVal').textContent=this.value+'°'">
-        </div>
-      </div>
-    </div>
-  </div>
-</main>
+    /* ══ CONFIG ══ */
+    const GROQ_API_KEY = window.ENV_API_KEY || '';
+    const GROQ_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
+    const PROXY_URL = '/.netlify/functions/groq';
 
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
-<script type="module">
-import { ObjectDetector, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.2/vision_bundle.mjs";
-window.ObjectDetector = ObjectDetector;
-window.FilesetResolver = FilesetResolver;
-</script>
-<script>
-let pose = null, camera = null, stream = null, objectDetector = null;
-let isRunning = false, alertCount = 0;
-let rodThreshold = 80, angleSensitivity = 25;
-let lastFrameTime = Date.now(), fpsArr = [], lastRodState = false;
-let currentMode = 'live', lastImageFile = null, imagePose = null;
-let facingMode = 'user'; 
+    /* ══ PHASE THRESHOLDS ══ */
+    const PHASE_THRESHOLDS = [0, 10, 50, 100]; // examples needed for each phase
+    const PHASE_LABELS = ['Observing', 'Assisted', 'Solo', 'Expert'];
 
-const videoEl = document.getElementById('videoEl');
-const liveCanvas = document.getElementById('liveCanvas');
-const liveCtx = liveCanvas.getContext('2d');
-const imgCanvas = document.getElementById('imgCanvas');
-const imgCtx = imgCanvas.getContext('2d');
+    /* ══ KNN CONFIG ══ */
+    const KNN_K = 5;    // nearest neighbors to vote
+    const KNN_MIN_EXAMPLES = 10;   // minimum before KNN is used at all
+    const KNN_SOLO_EXAMPLES = 50;   // KNN becomes primary (Phase 3)
+    const KNN_CONF_SOLO = 75;   // KNN confidence needed to skip Groq in solo mode
 
-async function initObjectDetector() {
-  if (objectDetector) return;
-  const vision = await FilesetResolver.forVisionTasks(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.2/wasm"
-  );
-  objectDetector = await ObjectDetector.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetPath: `https://storage.googleapis.com/mediapipe-tasks/object_detector/efficientdet_lite0_uint8.tflite`,
-      delegate: "GPU"
-    },
-    scoreThreshold: 0.3,
-    runningMode: currentMode === 'live' ? "VIDEO" : "IMAGE"
-  });
-}
+    /* ══ CONFIRMATION SMOOTHING ══ */
+    const CONFIRM_FRAMES_NEEDED = 2;
+    const CLEAR_FRAMES_NEEDED = 3;
+    const CROP_PADDING_FACTOR = 1.4;
+    const CROP_MIN_FRAC = 0.25;
 
-function triggerFileInput() {
-  // Remove capture attribute to give both gallery and camera option on mobile
-  document.getElementById('fileInput').removeAttribute('capture');
-  document.getElementById('fileInput').click();
-}
+    /* ══ STATE ══ */
+    let livePose = null, imagePose = null;
+    let stream = null, isRunning = false;
+    let alertCount = 0, apiCallCount = 0;
+    let lastFrameTime = Date.now(), fpsArr = [];
+    let currentMode = 'live', lastImageFile = null, facingMode = 'user';
+    let groqInterval = 5000, lastGroqCall = 0, groqInFlight = false;
+    let liveRodState = false, lastLandmarks = null, animationId = null;
+    let confirmCount = 0, clearCount = 0, confThreshold = 70;
 
-function switchMode(mode) {
-  currentMode = mode;
-  document.getElementById('livePanel').classList.toggle('active', mode === 'live');
-  document.getElementById('imagePanel').classList.toggle('active', mode === 'image');
-  document.getElementById('tabLive').classList.toggle('active', mode === 'live');
-  document.getElementById('tabImage').classList.toggle('active', mode === 'image');
-}
+    /* ══ KNN / LEARNING STATE ══ */
+    let mobilenetModel = null, mobilenetLoading = false;
+    let knnExamples = [], accuracyHistory = [];
+    let groqFailStreak = 0, usingLocalFallback = false;
+    const FALLBACK_THRESHOLD = 2;
 
-function setStatus(s) {
-  const pill = document.getElementById('statusPill');
-  const txt = document.getElementById('statusText');
-  pill.className = 'status-pill';
-  if (s === 'active') { pill.classList.add('active'); txt.textContent = 'Live'; }
-  else if (s === 'danger') { pill.classList.add('danger'); txt.textContent = 'Alert!'; }
-  else txt.textContent = 'Offline';
-}
+    /* ══ VERIFICATION / RE-TRAINING STATE ══ */
+    let verificationCount = 0;   // counts attempts in Expert mode
+    const VERIFICATION_LIMIT = 10;
+    let needsRetraining = false;
 
-function dist(a, b) { return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2); }
+    /* ══ INDEXEDDB HELPERS ══ */
+    const DB_NAME = 'RodGuardDB', DB_VERSION = 1, STORE_NAME = 'examples';
+    let db = null;
 
-function vectorAngle(p1, p2, p3) {
-  const v1 = {x:p1.x-p2.x, y:p1.y-p2.y}, v2 = {x:p3.x-p2.x, y:p3.y-p2.y};
-  const dot = v1.x*v2.x + v1.y*v2.y;
-  const mag = Math.sqrt(v1.x**2+v1.y**2) * Math.sqrt(v2.x**2+v2.y**2);
-  return mag===0 ? 0 : Math.acos(Math.min(1, Math.max(-1, dot/mag))) * 180/Math.PI;
-}
+    async function initDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+          }
+        };
+        request.onsuccess = (e) => { db = e.target.result; resolve(db); };
+        request.onerror = (e) => reject(e);
+      });
+    }
 
-function armExtRatio(s, e, w) {
-  const parts = dist(s,e) + dist(e,w);
-  return parts===0 ? 0 : dist(s,w)/parts;
-}
+    async function saveToDB(ex) {
+      if (!db) return;
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.add({
+          vector: Array.from(ex.vector),
+          label: ex.label,
+          itemName: ex.itemName,
+          confidence: ex.confidence,
+          timestamp: ex.timestamp || Date.now()
+        });
+        req.onsuccess = (e) => {
+          ex.id = e.target.result; // update in-memory object with DB id
+          resolve(ex.id);
+        };
+        req.onerror = reject;
+      });
+    }
 
-function analyzeRod(landmarks, detections, W, H) {
-  if (!landmarks || landmarks.length < 33) return {rod:false, score:0};
-  const lm = landmarks;
-  const lS=lm[11],rS=lm[12],lE=lm[13],rE=lm[14],lW=lm[15],rW=lm[16];
-  const minV = 0.45;
-  const lVis = lW.visibility>minV && lE.visibility>minV && lS.visibility>minV;
-  const rVis = rW.visibility>minV && rE.visibility>minV && rS.visibility>minV;
-  
-  let poseScore=0, lExt=0, rExt=0;
-  if (lVis) {
-    lExt = armExtRatio(lS,lE,lW);
-    const ang = vectorAngle(lS,lE,lW);
-    if (lExt>0.82) poseScore+=25;
-    if (ang>180-angleSensitivity) poseScore+=20;
-  }
-  if (rVis) {
-    rExt = armExtRatio(rS,rE,rW);
-    const ang = vectorAngle(rS,rE,rW);
-    if (rExt>0.82) poseScore+=25;
-    if (ang>180-angleSensitivity) poseScore+=20;
-  }
-  
-  // OBJECT DETECTION LOGIC
-  let hasObjectNearHand = false;
-  let objectScore = 0;
-  
-  if (detections && detections.length > 0) {
-    detections.forEach(det => {
-      const bbox = det.boundingBox;
-      const categories = det.categories;
-      const isRodLike = categories.some(c => 
-        ['baseball bat', 'umbrella', 'stick', 'pole', 'bottle'].includes(c.categoryName.toLowerCase()) ||
-        (bbox.width / bbox.height > 4) || (bbox.height / bbox.width > 4)
-      );
-      
-      if (isRodLike) {
-        // Check if object is near left or right wrist
-        const detCenterX = (bbox.originX + bbox.width/2) / W;
-        const detCenterY = (bbox.originY + bbox.height/2) / H;
-        
-        const distL = lVis ? Math.sqrt((lW.x - detCenterX)**2 + (lW.y - detCenterY)**2) : 1;
-        const distR = rVis ? Math.sqrt((rW.x - detCenterX)**2 + (rW.y - detCenterY)**2) : 1;
-        
-        if (distL < 0.15 || distR < 0.15) {
-          hasObjectNearHand = true;
-          objectScore = Math.max(objectScore, categories[0].score * 100);
+    async function deleteFromDB(id) {
+      if (!db) return;
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const req = tx.objectStore(STORE_NAME).delete(id);
+        req.onsuccess = () => resolve();
+        req.onerror = reject;
+      });
+    }
+
+    async function clearDB() {
+      if (!db) return;
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const req = tx.objectStore(STORE_NAME).clear();
+        req.onsuccess = () => resolve();
+        req.onerror = reject;
+      });
+    }
+
+    async function loadFromDB() {
+      if (!db) return [];
+      return new Promise((resolve) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).getAll();
+        req.onsuccess = () => {
+          const data = req.result.map(d => ({
+            ...d,
+            vector: new Float32Array(d.vector)
+          }));
+          resolve(data);
+        };
+      });
+    }
+
+    /* ══ CANVAS ELEMENTS ══ */
+    const videoEl = document.getElementById('videoEl');
+    const liveCanvas = document.getElementById('liveCanvas');
+    const liveCtx = liveCanvas.getContext('2d');
+    const imgCanvas = document.getElementById('imgCanvas');
+    const imgCtx = imgCanvas.getContext('2d');
+    const debugCanvas = document.getElementById('debugCanvas');
+    const debugCtx = debugCanvas.getContext('2d');
+    const accCanvas = document.getElementById('accCanvas');
+    const accCtx = accCanvas.getContext('2d');
+
+    /* ══════════════════════════════════════════════════════════
+       MOBILENET FEATURE EXTRACTOR — loads once on page load
+    ══════════════════════════════════════════════════════════ */
+    async function loadMobileNet() {
+      if (mobilenetModel || mobilenetLoading) return;
+      mobilenetLoading = true;
+      try {
+        mobilenetModel = await mobilenet.load({ version: 2, alpha: 1.0 });
+        flashLearnMsg('✓ MobileNet loaded — feature extraction ready');
+        document.getElementById('learningBadge').classList.add('show');
+      } catch (e) {
+        console.warn('MobileNet load failed:', e);
+        flashLearnMsg('⚠ Local feature extractor unavailable');
+      } finally {
+        mobilenetLoading = false;
+      }
+    }
+
+    /* Extract 1280-dim feature vector from a canvas element */
+    async function extractFeatures(canvas) {
+      if (!mobilenetModel) return null;
+      try {
+        // Use the internal embedding layer (before classification head)
+        const activation = mobilenetModel.infer(canvas, true); // true = include last layer embedding
+        const vec = await activation.data();
+        activation.dispose();
+        return new Float32Array(vec);
+      } catch (e) {
+        console.warn('Feature extraction error:', e);
+        return null;
+      }
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       KNN CLASSIFIER (cosine similarity, k=5)
+    ══════════════════════════════════════════════════════════ */
+    function cosineSimFast(a, b) {
+      let dot = 0, na = 0, nb = 0;
+      for (let i = 0; i < a.length; i++) {
+        dot += a[i] * b[i];
+        na += a[i] * a[i];
+        nb += b[i] * b[i];
+      }
+      return na === 0 || nb === 0 ? 0 : dot / (Math.sqrt(na) * Math.sqrt(nb));
+    }
+
+    function knnPredict(queryVec) {
+      if (knnExamples.length < KNN_MIN_EXAMPLES || !queryVec) return null;
+
+      // Compute similarity to all stored examples
+      const scored = knnExamples.map((ex, i) => ({
+        sim: cosineSimFast(queryVec, ex.vector),
+        label: ex.label,
+        idx: i
+      }));
+
+      scored.sort((a, b) => b.sim - a.sim);
+      const neighbors = scored.slice(0, KNN_K);
+
+      // Weighted vote: weight = similarity score
+      let threatScore = 0, safeScore = 0;
+      neighbors.forEach(n => {
+        if (n.label === 1) threatScore += n.sim;
+        else safeScore += n.sim;
+      });
+
+      const total = threatScore + safeScore;
+      const isThreat = threatScore > safeScore;
+      const rawConf = total > 0 ? (Math.max(threatScore, safeScore) / total) * 100 : 50;
+      const topSim = neighbors[0]?.sim || 0;
+
+      return {
+        isThreat,
+        confidence: Math.round(rawConf),
+        topSimilarity: Math.round(topSim * 100),
+        k: neighbors.length,
+        source: 'knn'
+      };
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       TRAINING — store Groq result as labeled example
+    ══════════════════════════════════════════════════════════ */
+    async function learnFromGroqResult(canvas, groqResult) {
+      if (!mobilenetModel) return;
+
+      const vec = await extractFeatures(canvas);
+      if (!vec) return;
+
+      const label = groqResult.isThreat ? 1 : 0;
+      knnExamples.push({
+        vector: vec,
+        label,
+        confidence: groqResult.confidence,
+        itemName: groqResult.itemName,
+        source: 'groq',
+        timestamp: Date.now()
+      });
+
+      // ★ PERSIST to IndexedDB
+      saveToDB(knnExamples[knnExamples.length - 1]).catch(console.error);
+
+      // Update accuracy via leave-one-out cross-validation on last 20 examples
+      updateAccuracy();
+      updateLearningUI(groqResult);
+      flashLearnMsg(`🧠 Learned: ${groqResult.itemName} (${groqResult.isThreat ? '⚠ threat' : '✓ safe'}) — ${knnExamples.length} total examples`);
+      // Animate the learning panel
+      document.getElementById('learnPanel').classList.add('learn-flash');
+      setTimeout(() => document.getElementById('learnPanel').classList.remove('learn-flash'), 600);
+    }
+
+    function updateAccuracy() {
+      const n = knnExamples.length;
+      if (n < KNN_MIN_EXAMPLES) return;
+
+      // Leave-one-out on last 30 examples (fast)
+      const testSet = knnExamples.slice(-30);
+      let correct = 0;
+      testSet.forEach((ex, i) => {
+        // Temporarily exclude this example
+        const others = knnExamples.filter((_, j) => j !== knnExamples.length - 30 + i);
+        if (others.length < KNN_MIN_EXAMPLES) return;
+
+        const scored = others.map(o => ({ sim: cosineSimFast(ex.vector, o.vector), label: o.label }));
+        scored.sort((a, b) => b.sim - a.sim);
+        const k = scored.slice(0, KNN_K);
+        const threatVotes = k.filter(x => x.label === 1).length;
+        const predictedThreat = threatVotes > k.length / 2;
+        if ((predictedThreat ? 1 : 0) === ex.label) correct++;
+      });
+
+      const acc = Math.round((correct / testSet.length) * 100);
+      accuracyHistory.push(acc);
+      if (accuracyHistory.length > 40) accuracyHistory.shift();
+      drawAccuracyChart();
+      document.getElementById('accVal').textContent = acc + '%';
+      document.getElementById('statAcc').textContent = acc + '%';
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       ACCURACY MINI-CHART
+    ══════════════════════════════════════════════════════════ */
+    function drawAccuracyChart() {
+      const W = accCanvas.offsetWidth || 200, H = 28;
+      accCanvas.width = W; accCanvas.height = H;
+      accCtx.clearRect(0, 0, W, H);
+      if (accuracyHistory.length < 2) return;
+
+      // Background grid line at 80%
+      accCtx.strokeStyle = 'rgba(255,255,255,0.06)';
+      accCtx.lineWidth = 1;
+      accCtx.beginPath();
+      accCtx.moveTo(0, H * 0.2);
+      accCtx.lineTo(W, H * 0.2);
+      accCtx.stroke();
+
+      // Accuracy line
+      accCtx.beginPath();
+      accCtx.strokeStyle = '#a78bfa';
+      accCtx.lineWidth = 1.5;
+      accCtx.lineJoin = 'round';
+      accuracyHistory.forEach((v, i) => {
+        const x = (i / (accuracyHistory.length - 1)) * W;
+        const y = H - (v / 100) * H;
+        i === 0 ? accCtx.moveTo(x, y) : accCtx.lineTo(x, y);
+      });
+      accCtx.stroke();
+
+      // Dot at latest point
+      const lastX = W, lastY = H - (accuracyHistory[accuracyHistory.length - 1] / 100) * H;
+      accCtx.beginPath();
+      accCtx.arc(lastX - 1, lastY, 3, 0, Math.PI * 2);
+      accCtx.fillStyle = '#a78bfa';
+      accCtx.fill();
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       LEARNING UI UPDATES
+    ══════════════════════════════════════════════════════════ */
+    function getPhase() {
+      const n = knnExamples.length;
+      if (n >= 100) return 3;
+      if (n >= 50) return 2;
+      if (n >= 10) return 1;
+      return 0;
+    }
+
+    function updateLearningUI(latestResult) {
+      const n = knnExamples.length;
+      const phase = getPhase();
+      const threats = knnExamples.filter(e => e.label === 1).length;
+      const safe = knnExamples.filter(e => e.label === 0).length;
+
+      document.getElementById('statTotal').textContent = n;
+      document.getElementById('statThreats').textContent = threats;
+      document.getElementById('statSafe').textContent = safe;
+
+      // Phase badge
+      const phaseNames = ['Phase 1 — Observing', 'Phase 2 — Assisted', 'Phase 3 — Solo', 'Phase 4 — Expert'];
+      document.getElementById('phaseBadge').textContent = phaseNames[phase];
+
+      // Phase markers
+      for (let i = 0; i <= 3; i++) {
+        document.getElementById('pm' + i).classList.toggle('active', i === phase);
+      }
+
+      // Progress bar (log scale feels better visually)
+      const maxExamples = 200;
+      const pct = Math.min(100, (n / maxExamples) * 100);
+      document.getElementById('phaseBarFill').style.width = pct + '%';
+
+      // Mode label
+      const modeEl = document.getElementById('statMode');
+      if (phase === 0) { modeEl.textContent = 'GROQ ONLY'; modeEl.style.color = 'var(--muted)'; }
+      else if (phase === 1) { modeEl.textContent = 'GROQ + KNN'; modeEl.style.color = 'var(--accent2)'; }
+      else if (phase === 2) { modeEl.textContent = 'KNN PRIMARY'; modeEl.style.color = 'var(--learn)'; }
+      else { modeEl.textContent = 'KNN EXPERT'; modeEl.style.color = 'var(--accent)'; }
+
+      // Show export button at Phase 4
+      document.getElementById('exportBtn').classList.toggle('show', phase >= 3);
+
+      // Fallback badge wording
+      if (usingLocalFallback) {
+        document.getElementById('fallbackBadge').textContent = '⚡ LOCAL KNN';
+        document.getElementById('fallbackBadge').classList.add('show');
+      }
+    }
+
+    function flashLearnMsg(msg) {
+      const el = document.getElementById('lastLearnMsg');
+      el.textContent = msg;
+      el.classList.add('flash');
+      setTimeout(() => el.classList.remove('flash'), 1500);
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       SMART DETECTION ROUTER
+       Decides whether to use Groq, KNN, or both based on phase
+    ══════════════════════════════════════════════════════════ */
+    async function smartDetect(base64jpeg, canvas) {
+      const phase = getPhase();
+
+      // Phase 0: GROQ ONLY
+      if (phase === 0) {
+        return await callGroqWithFallback(base64jpeg, canvas);
+      }
+
+      // Phase 1: ASSISTED — run both, Groq wins
+      if (phase === 1) {
+        const [groqResult, knnResult] = await Promise.allSettled([
+          callGroqWithFallback(base64jpeg, canvas),
+          runKNNDetection(canvas)
+        ]);
+        const groq = groqResult.status === 'fulfilled' ? groqResult.value : null;
+        const knn = knnResult.status === 'fulfilled' ? knnResult.value : null;
+        if (groq && knn) showKNNComparison(groq, knn);
+        return groq || knn;
+      }
+
+      // Phase 2: SOLO — KNN is primary, use Groq only if KNN is uncertain
+      if (phase === 2) {
+        const knnResult = await runKNNDetection(canvas);
+        if (knnResult && knnResult.confidence >= KNN_CONF_SOLO) {
+          // KNN is confident enough — skip Groq
+          document.getElementById('confSource').textContent = 'KNN CONFIDENCE';
+          document.getElementById('fallbackBadge').classList.add('show');
+          showKNNOverlay(knnResult);
+          if (apiCallCount % 10 === 0) {
+            callGroqWithFallback(base64jpeg, canvas).then(g => { if (g) learnFromGroqResult(canvas, g); }).catch(() => { });
+          }
+          return { ...knnResult, itemName: knnResult.isThreat ? 'rod/threat' : 'safe', reason: `KNN classifier (${knnResult.k} neighbors)` };
+        } else {
+          // KNN uncertain — fall back to Groq
+          document.getElementById('confSource').textContent = 'GROQ CONFIDENCE (KNN Uncertain)';
+          return await callGroqWithFallback(base64jpeg, canvas);
         }
       }
-    });
-  }
 
-  // Combined Score: Higher if both pose and object match
-  let finalScore = 0;
-  if (hasObjectNearHand) {
-    finalScore = 50 + (poseScore * 0.5); // At least 50 if object found near hand
-  } else {
-    finalScore = poseScore * 0.4; // Low score if no object found near hand, even if pose looks right
-  }
+      // Phase 3: EXPERT / VERIFICATION
+      if (phase >= 3) {
+        const knnResult = await runKNNDetection(canvas);
 
-  finalScore = Math.min(100, finalScore);
-  document.getElementById('armL').textContent = Math.round(lExt*100)+'%';
-  document.getElementById('armR').textContent = Math.round(rExt*100)+'%';
-  
-  return {rod: finalScore >= 55, score: finalScore, lExt, rExt};
-}
+        // FEATURE #1: First 10 attempts in Expert mode compare with Groq
+        if (verificationCount < VERIFICATION_LIMIT) {
+          verificationCount++;
+          const groqResult = await callGroqWithFallback(base64jpeg, canvas);
+          if (groqResult && knnResult) {
+            const agree = groqResult.isThreat === knnResult.isThreat;
+            showKNNComparison(groqResult, knnResult);
+            flashLearnMsg(`🔍 Verification ${verificationCount}/${VERIFICATION_LIMIT}: ${agree ? '✓ Match' : '⚡ Re-evaluating'}`);
+            if (!agree) {
+              // Retrain needed if KNN was wrong
+              learnFromGroqResult(canvas, groqResult);
+            }
+          }
+          return groqResult;
+        }
 
-function drawSkeleton(ctx, landmarks, W, H, rodDetected) {
-  const conns = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[15,17],[15,19],[16,18],[16,20]];
-  const col = rodDetected ? '#ff4757' : '#00e5a0';
-  const dim = rodDetected ? 'rgba(255,71,87,0.3)' : 'rgba(0,229,160,0.3)';
-  conns.forEach(([a,b]) => {
-    if (!landmarks[a]||!landmarks[b]||landmarks[a].visibility<0.4||landmarks[b].visibility<0.4) return;
-    ctx.beginPath(); ctx.moveTo(landmarks[a].x*W, landmarks[a].y*H);
-    ctx.lineTo(landmarks[b].x*W, landmarks[b].y*H);
-    ctx.strokeStyle=dim; ctx.lineWidth=2; ctx.stroke();
-  });
-  [11,12,13,14,15,16,19,20].forEach(i => {
-    const lm=landmarks[i];
-    if (!lm||lm.visibility<0.4) return;
-    ctx.beginPath(); ctx.arc(lm.x*W, lm.y*H, 5, 0, Math.PI*2);
-    ctx.fillStyle=col; ctx.fill(); ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.stroke();
-  });
-  if (rodDetected) {
-    const lW=landmarks[15], rW=landmarks[16];
-    if (lW&&rW&&lW.visibility>0.5&&rW.visibility>0.5) {
-      ctx.beginPath(); ctx.moveTo(lW.x*W,lW.y*H); ctx.lineTo(rW.x*W,rW.y*H);
-      ctx.strokeStyle='#ff4757'; ctx.lineWidth=4; ctx.setLineDash([8,4]); ctx.stroke(); ctx.setLineDash([]);
-      ctx.font='bold 11px JetBrains Mono,monospace'; ctx.fillStyle='#ff4757'; ctx.textAlign='center';
-      ctx.fillText('⚠ ROD DETECTED', ((lW.x+rW.x)/2)*W, ((lW.y+rW.y)/2)*H-14);
-    }
-  }
-}
-
-function updateLiveBadge(rod, score) {
-  const badge = document.getElementById('detBadge');
-  const icon = document.getElementById('detIcon');
-  const val = document.getElementById('detValue');
-  const sc = document.getElementById('detScore');
-  sc.textContent = Math.round(score)+'/100';
-  if (rod) {
-    badge.className='det-badge detected'; icon.textContent='🚨';
-    val.textContent='The person is holding rod'; val.className='det-badge-value danger-text';
-    document.getElementById('liveAlert').className='alert-overlay rod';
-    document.getElementById('liveAlert').textContent='⚠ The person is holding rod';
-    setStatus('danger');
-  } else {
-    badge.className='det-badge safe'; icon.textContent='✅';
-    val.textContent='The person is not holding rod'; val.className='det-badge-value safe-text';
-    document.getElementById('liveAlert').className='alert-overlay no-rod';
-    document.getElementById('liveAlert').textContent='✓ The person is not holding rod';
-    setStatus('active');
-  }
-  document.getElementById('liveConfBar').style.display='block';
-  const fill=document.getElementById('liveConfFill');
-  fill.style.width=score+'%';
-  fill.style.background = score>=55?'#ff4757':score>30?'#ffa502':'#00e5a0';
-  document.getElementById('liveConfPct').textContent=Math.round(score)+'%';
-}
-
-async function onLiveResults(results) {
-  const W=liveCanvas.width, H=liveCanvas.height;
-  liveCtx.save(); liveCtx.clearRect(0,0,W,H);
-  if (results.image) { liveCtx.drawImage(results.image,0,0,W,H); liveCtx.fillStyle='rgba(0,0,0,0.3)'; liveCtx.fillRect(0,0,W,H); }
-  const now=Date.now();
-  fpsArr.push(Math.round(1000/Math.max(1,now-lastFrameTime)));
-  if(fpsArr.length>10) fpsArr.shift();
-  document.getElementById('fpsVal').textContent=Math.round(fpsArr.reduce((a,b)=>a+b,0)/fpsArr.length)+'fps';
-  lastFrameTime=now;
-  if (results.poseLandmarks?.length>0) {
-    const avgVis=results.poseLandmarks.reduce((s,l)=>s+(l.visibility||0),0)/results.poseLandmarks.length;
-    document.getElementById('poseConf').textContent=Math.round(avgVis*100)+'%';
-    
-    // Run Object Detection if initialized
-    let detections = [];
-    if (objectDetector && isRunning) {
-      detections = objectDetector.detectForVideo(videoEl, performance.now()).detections;
-    }
-    
-    const {rod, score}=analyzeRod(results.poseLandmarks, detections, W, H);
-    drawSkeleton(liveCtx, results.poseLandmarks, W, H, rod);
-    updateLiveBadge(rod, score);
-    if (rod&&!lastRodState) { alertCount++; document.getElementById('alertCount').textContent=alertCount; }
-    lastRodState=rod;
-  } else {
-    liveCtx.font='13px monospace'; liveCtx.fillStyle='rgba(255,255,255,0.3)'; liveCtx.textAlign='center';
-    liveCtx.fillText('No person in frame', W/2, H/2);
-    document.getElementById('liveAlert').className='alert-overlay'; setStatus('active');
-  }
-  liveCtx.restore();
-}
-
-async function startCamera() {
-  if (typeof Pose==='undefined') { alert('MediaPipe is loading, please wait and try again.'); return; }
-  await initObjectDetector();
-  try {
-    if (stream) { stream.getTracks().forEach(t=>t.stop()); }
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: facingMode, width:{ideal:640}, height:{ideal:480} },
-      audio: false
-    });
-    videoEl.srcObject=stream; videoEl.style.display='block';
-    document.getElementById('livePlaceholder').style.display='none';
-    document.getElementById('startBtn').disabled=true;
-    document.getElementById('stopBtn').disabled=false;
-    isRunning=true;
-    if (!pose) {
-      pose=new Pose({locateFile: f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`});
-      pose.setOptions({modelComplexity:1,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
-      pose.onResults(onLiveResults);
-    }
-    camera=new Camera(videoEl, {
-      onFrame: async ()=>{
-        liveCanvas.width=videoEl.videoWidth||640; liveCanvas.height=videoEl.videoHeight||480;
-        if (pose&&isRunning) await pose.send({image:videoEl});
-      }, width:640, height:480
-    });
-    await camera.start(); setStatus('active');
-  } catch(err) { alert('Camera error: '+err.message); }
-}
-
-function stopCamera() {
-  isRunning=false;
-  if(camera){camera.stop();camera=null;}
-  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
-  videoEl.srcObject=null; videoEl.style.display='none';
-  document.getElementById('livePlaceholder').style.display='flex';
-  document.getElementById('startBtn').disabled=false;
-  document.getElementById('stopBtn').disabled=true;
-  document.getElementById('liveAlert').className='alert-overlay';
-  document.getElementById('liveConfBar').style.display='none';
-  liveCtx.clearRect(0,0,liveCanvas.width,liveCanvas.height);
-  setStatus('');
-}
-
-async function flipCamera() {
-  facingMode = facingMode==='user' ? 'environment' : 'user';
-  if (isRunning) { await stopCamera(); await startCamera(); }
-}
-
-function onDrop(e) { e.preventDefault(); const f=e.dataTransfer.files[0]; if(f&&f.type.startsWith('image/')) processImageFile(f); }
-function handleFileSelect(e) { const f=e.target.files[0]; if(f) processImageFile(f); e.target.value=''; }
-
-function processImageFile(file) {
-  lastImageFile=file;
-  document.getElementById('dropZone').style.display='none';
-  document.getElementById('processingMsg').style.display='block';
-  document.getElementById('imgResultBanner').style.display='none';
-  document.getElementById('rerunBtn').disabled=true;
-  document.getElementById('clearBtn').disabled=true;
-  const reader=new FileReader();
-  reader.onload=e=>{ const img=new Image(); img.onload=()=>runImagePose(img); img.src=e.target.result; };
-  reader.readAsDataURL(file);
-}
-
-async function runImagePose(img) {
-  if (typeof Pose==='undefined') { alert('MediaPipe not loaded yet.'); document.getElementById('processingMsg').style.display='none'; return; }
-  await initObjectDetector();
-  imgCanvas.width=img.naturalWidth||img.width;
-  imgCanvas.height=img.naturalHeight||img.height;
-  imgCtx.drawImage(img,0,0);
-  imgCanvas.style.display='block'; imgCanvas.style.maxWidth='100%'; imgCanvas.style.maxHeight='100%';
-  if (!imagePose) {
-    imagePose=new Pose({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`});
-    imagePose.setOptions({modelComplexity:1,smoothLandmarks:false,enableSegmentation:false,minDetectionConfidence:0.4,minTrackingConfidence:0.4});
-  }
-  let done=false;
-  imagePose.onResults(results=>{
-    if(done) return; done=true;
-    document.getElementById('processingMsg').style.display='none';
-    document.getElementById('rerunBtn').disabled=false;
-    document.getElementById('clearBtn').disabled=false;
-    const W=imgCanvas.width, H=imgCanvas.height;
-    imgCtx.clearRect(0,0,W,H); imgCtx.drawImage(img,0,0);
-    imgCtx.fillStyle='rgba(0,0,0,0.3)'; imgCtx.fillRect(0,0,W,H);
-    const banner=document.getElementById('imgResultBanner');
-    const iBadge=document.getElementById('imgDetBadge');
-    const iIcon=document.getElementById('imgDetIcon');
-    const iVal=document.getElementById('imgDetValue');
-    const iSc=document.getElementById('imgDetScore');
-    if (results.poseLandmarks?.length>0) {
-      let detections = [];
-      if (objectDetector) {
-        detections = objectDetector.detect(img).detections;
+        // Normal Expert operation
+        if (knnResult && knnResult.confidence >= KNN_CONF_SOLO) {
+          document.getElementById('confSource').textContent = 'KNN EXPERT';
+          document.getElementById('fallbackBadge').classList.add('show');
+          showKNNOverlay(knnResult);
+          return { ...knnResult, itemName: knnResult.isThreat ? 'rod/threat' : 'safe', reason: `KNN Expert Mode (${knnResult.k} neighbors)` };
+        } else {
+          // KNN confused — re-learn from Groq
+          document.getElementById('confSource').textContent = 'GROQ CONFIDENCE (KNN Confused)';
+          flashLearnMsg('🧠 KNN Confused — calling Groq for re-evaluation…');
+          return await callGroqWithFallback(base64jpeg, canvas);
+        }
       }
-      const {rod, score}=analyzeRod(results.poseLandmarks, detections, W, H);
-      drawSkeleton(imgCtx, results.poseLandmarks, W, H, rod);
-      iSc.textContent=Math.round(score)+'/100';
-      document.getElementById('imgConfBar').style.display='block';
-      const fill=document.getElementById('imgConfFill');
-      fill.style.width=score+'%'; fill.style.background=score>=55?'#ff4757':score>30?'#ffa502':'#00e5a0';
-      document.getElementById('imgConfPct').textContent=Math.round(score)+'%';
-      document.getElementById('imgAlert').className='alert-overlay '+(rod?'rod':'no-rod');
-      document.getElementById('imgAlert').textContent=rod?'⚠ WEAPON DETECTED':'✓ CLEAR';
-      if (rod) {
-        iBadge.className='det-badge detected'; iIcon.textContent='🚨';
-        iVal.textContent='The person is holding rod'; iVal.className='det-badge-value danger-text';
-        banner.className='img-result-banner rod';
-        banner.textContent='⚠ The person is holding rod — score: '+Math.round(score)+'/100';
-        alertCount++; document.getElementById('alertCount').textContent=alertCount;
+    }
+
+    async function runKNNDetection(canvas) {
+      const vec = await extractFeatures(canvas);
+      return knnPredict(vec);
+    }
+
+    function showKNNOverlay(knnResult) {
+      const overlay = document.getElementById('knnOverlay');
+      const text = document.getElementById('knnMatchText');
+      const fill = document.getElementById('knnMatchFill');
+      overlay.classList.add('show');
+      text.textContent = `KNN: ${knnResult.isThreat ? '⚠ threat' : '✓ safe'} — ${knnResult.confidence}% conf (${knnResult.k} neighbors)`;
+      fill.style.width = knnResult.confidence + '%';
+      fill.style.background = knnResult.isThreat ? 'var(--danger)' : 'var(--learn)';
+    }
+
+    function showKNNComparison(groq, knn) {
+      const overlay = document.getElementById('knnOverlay');
+      const text = document.getElementById('knnMatchText');
+      const fill = document.getElementById('knnMatchFill');
+      const agree = groq.isThreat === knn.isThreat;
+      overlay.classList.add('show');
+      text.textContent = `KNN: ${knn.isThreat ? '⚠' : '✓'} ${knn.confidence}% | Groq: ${groq.isThreat ? '⚠' : '✓'} ${groq.confidence}% | ${agree ? '✓ agree' : '⚡ differ'}`;
+      fill.style.width = knn.confidence + '%';
+      fill.style.background = agree ? 'var(--learn)' : 'var(--warn)';
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       GROQ API CALL WITH FALLBACK + TEACHING
+    ══════════════════════════════════════════════════════════ */
+    async function callGroqWithFallback(base64jpeg, canvas) {
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Groq timeout (8s)')), 8000)
+      );
+
+      // Check if we should skip Groq (in full fallback mode)
+      if (usingLocalFallback && getPhase() >= 1) {
+        const knnResult = await runKNNDetection(canvas);
+        if (knnResult) return { ...knnResult, itemName: knnResult.isThreat ? 'rod/threat' : 'safe', reason: `KNN fallback (Groq unavailable)` };
+      }
+
+      try {
+        document.getElementById('thinkingLabel').textContent = 'Groq Vision analyzing…';
+        const result = await Promise.race([callGroqVision(base64jpeg), timeoutPromise]);
+        groqFailStreak = 0;
+        usingLocalFallback = false;
+        document.getElementById('fallbackBadge').classList.remove('show');
+        // ★ TEACH the KNN from this Groq result
+        learnFromGroqResult(canvas, result).catch(() => { });
+        return result;
+      } catch (err) {
+        groqFailStreak++;
+        if (groqFailStreak >= FALLBACK_THRESHOLD) {
+          usingLocalFallback = true;
+          document.getElementById('fallbackBadge').classList.add('show');
+          flashLearnMsg(`⚡ Groq failed (${err.message}) — using KNN`);
+        }
+        // Try KNN as recovery
+        const knnResult = await runKNNDetection(canvas).catch(() => null);
+        if (knnResult) {
+          return { ...knnResult, itemName: knnResult.isThreat ? 'rod/threat' : 'safe', reason: `KNN fallback: ${err.message}` };
+        }
+        throw err;
+      }
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       GROQ VISION — OCCLUSION-AWARE PROMPT (from v2)
+    ══════════════════════════════════════════════════════════ */
+    const DETECTION_PROMPT = `You are a security surveillance AI specialized in detecting weapons and threatening objects.
+
+Analyze this image and identify what the person(s) in the image are holding in their hands.
+
+CATEGORIES:
+1. THREAT: Rods, sticks, bats, poles, knives, guns, rifles, or any elongated rigid objects being gripped.
+2. SAFE: Phones, bottles, umbrellas, bags, books, or nothing.
+
+DETECTION RULES:
+1. The object must be physically GRIPPED or HELD.
+2. OCCLUSION: If part of the object is hidden behind the body or clothing, it still counts. Look for context clues like grip posture and shadows.
+3. Identify if the object is a THREAT or SAFE.
+4. Specifically identify if it is a "ROD", "KNIFE", "GUN", or a specific safe object like "PHONE".
+5. If no person or object is visible, set is_threat to false and item_name to "none".
+
+Respond ONLY with this exact JSON:
+{"is_threat":true_or_false,"object_type":"rod|knife|gun|safe_item|none","item_name":"specific name","confidence":0_to_100,"reason":"one concise sentence"}`;
+
+    async function callGroqVision(base64jpeg) {
+      const useDirect = !!(GROQ_API_KEY);
+      const url = useDirect ? 'https://api.groq.com/openai/v1/chat/completions' : PROXY_URL;
+      const headers = { 'Content-Type': 'application/json' };
+      if (useDirect) headers['Authorization'] = `Bearer ${GROQ_API_KEY}`;
+
+      const t0 = Date.now();
+      const res = await fetch(url, {
+        method: 'POST', headers,
+        body: JSON.stringify({
+          model: GROQ_MODEL,
+          messages: [{
+            role: 'user', content: [
+              { type: 'text', text: DETECTION_PROMPT },
+              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64jpeg}` } }
+            ]
+          }],
+          temperature: 0.05, max_tokens: 150
+        })
+      });
+
+      document.getElementById('apiLatency').textContent = (Date.now() - t0) + 'ms';
+      if (!res.ok) {
+        let msg = 'HTTP ' + res.status;
+        try { const e = await res.json(); msg = e?.error?.message || msg; } catch (_) { }
+        throw new Error(msg);
+      }
+
+      const data = await res.json();
+      const rawText = data?.choices?.[0]?.message?.content || '{}';
+      const cleaned = rawText.replace(/```json|```/g, '').trim();
+      let parsed;
+      try { parsed = JSON.parse(cleaned); }
+      catch { throw new Error('Bad JSON: ' + cleaned.slice(0, 80)); }
+
+      apiCallCount++;
+      document.getElementById('apiCalls').textContent = apiCallCount;
+
+      return {
+        isThreat: !!parsed.is_threat,
+        itemName: String(parsed.item_name || 'none'),
+        confidence: Math.min(100, Math.max(0, Number(parsed.confidence) || 0)),
+        reason: String(parsed.reason || ''),
+        source: 'groq'
+      };
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       DATASET EXPORT
+    ══════════════════════════════════════════════════════════ */
+    function exportDataset() {
+      const dataset = knnExamples.map((ex, i) => ({
+        id: i,
+        label: ex.label,
+        label_name: ex.label === 1 ? 'threat' : 'safe',
+        item_name: ex.itemName,
+        confidence: ex.confidence,
+        source: ex.source,
+        timestamp: ex.timestamp,
+        feature_vector: Array.from(ex.vector).slice(0, 64) // truncated for file size
+      }));
+      const meta = {
+        app: 'RodGuard AI v3',
+        university: 'Vishwakarma University',
+        total_examples: dataset.length,
+        threats: dataset.filter(d => d.label === 1).length,
+        safe: dataset.filter(d => d.label === 0).length,
+        accuracy: accuracyHistory[accuracyHistory.length - 1] || null,
+        exported_at: new Date().toISOString(),
+        note: 'Feature vectors truncated to 64 dims in this export. Full 1280-dim vectors available in-memory.'
+      };
+
+      const blob = new Blob([JSON.stringify({ meta, dataset }, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `rodguard-dataset-${Date.now()}.json`;
+      a.click();
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       STATUS + UI HELPERS
+    ══════════════════════════════════════════════════════════ */
+    function setStatus(state, label) {
+      const pill = document.getElementById('statusPill');
+      const txt = document.getElementById('statusText');
+      pill.className = 'status-pill' + (state ? ' ' + state : '');
+      const map = { ready: 'Ready', active: 'Live', analyzing: 'Analyzing…', danger: 'Alert!' };
+      txt.textContent = label || map[state] || 'Offline';
+    }
+
+    function switchMode(mode) {
+      currentMode = mode;
+      ['live', 'image', 'data'].forEach(m => {
+        const panel = document.getElementById(m + 'Panel');
+        const tab = document.getElementById('tab' + m.charAt(0).toUpperCase() + m.slice(1));
+        if (panel) panel.classList.toggle('active', mode === m);
+        if (tab) tab.classList.toggle('active', mode === m);
+      });
+      if (mode === 'data') renderDataExplorer();
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       DATA EXPLORER RENDERER
+    ══════════════════════════════════════════════════════════ */
+    function renderDataExplorer() {
+      const list = document.getElementById('dataList');
+      if (!knnExamples.length) {
+        list.innerHTML = '<div class="empty-state">No examples learned yet. Start scanning!</div>';
+        return;
+      }
+
+      list.innerHTML = knnExamples.slice().reverse().map(ex => `
+        <div class="data-item">
+          <div class="data-info">
+            <span class="data-tag ${ex.label === 1 ? 'threat' : 'safe'}">${ex.label === 1 ? 'Threat' : 'Safe'}</span>
+            <div>
+              <div style="font-weight:700">${ex.itemName.toUpperCase()}</div>
+              <div class="data-meta">${new Date(ex.timestamp).toLocaleTimeString()} · Conf: ${ex.confidence}%</div>
+            </div>
+          </div>
+          <div class="data-actions">
+            <button class="data-btn" onclick="deleteExample(${ex.id})" title="Delete Example">✕</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function deleteExample(id) {
+      if (!confirm('Delete this learned example?')) return;
+      try {
+        await deleteFromDB(id);
+        knnExamples = knnExamples.filter(ex => ex.id !== id);
+        updateLearningUI();
+        updateAccuracy();
+        renderDataExplorer();
+        flashLearnMsg('🗑 Example deleted');
+      } catch (e) {
+        alert('Delete failed: ' + e.message);
+      }
+    }
+
+    async function clearAllData() {
+      if (!confirm('WIPE ENTIRE DATASET? This cannot be undone.')) return;
+      try {
+        await clearDB();
+        knnExamples = [];
+        accuracyHistory = [];
+        updateLearningUI();
+        document.getElementById('accVal').textContent = '—';
+        document.getElementById('statAcc').textContent = '—';
+        renderDataExplorer();
+        flashLearnMsg('💀 Dataset wiped clean');
+      } catch (e) {
+        alert('Clear failed: ' + e.message);
+      }
+    }
+
+    function updateConfBar(fillId, pctId, containerId, score, isThreat) {
+      document.getElementById(containerId).style.display = 'block';
+      const fill = document.getElementById(fillId);
+      fill.style.width = score + '%';
+      fill.style.background = isThreat ? '#ff4757' : (score > 60 ? '#00e5a0' : '#ffa502');
+      document.getElementById(pctId).textContent = Math.round(score) + '%';
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       HAND CROP (from v2)
+    ══════════════════════════════════════════════════════════ */
+    function cropHandRegion(sourceCanvas, landmarks) {
+      const W = sourceCanvas.width, H = sourceCanvas.height;
+      const pts = [11, 12, 13, 14, 15, 16]
+        .map(i => landmarks && landmarks[i])
+        .filter(lm => lm && lm.visibility > 0.4);
+      if (pts.length < 2) return sourceCanvas;
+
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      pts.forEach(lm => { minX = Math.min(minX, lm.x); maxX = Math.max(maxX, lm.x); minY = Math.min(minY, lm.y); maxY = Math.max(maxY, lm.y); });
+
+      const bw = (maxX - minX) * CROP_PADDING_FACTOR, bh = (maxY - minY) * CROP_PADDING_FACTOR;
+      const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+      const halfW = Math.max(bw / 2, CROP_MIN_FRAC / 2), halfH = Math.max(bh / 2, CROP_MIN_FRAC / 2);
+
+      let x1 = Math.max(0, (cx - halfW) * W), y1 = Math.max(0, (cy - halfH) * H);
+      let x2 = Math.min(W, (cx + halfW) * W), y2 = Math.min(H, (cy + halfH) * H);
+      const cropW = Math.round(x2 - x1), cropH = Math.round(y2 - y1);
+      if (cropW < 32 || cropH < 32) return sourceCanvas;
+
+      const crop = document.createElement('canvas');
+      crop.width = cropW; crop.height = cropH;
+      crop.getContext('2d').drawImage(sourceCanvas, x1, y1, cropW, cropH, 0, 0, cropW, cropH);
+
+      debugCanvas.width = 96; debugCanvas.height = 96;
+      debugCtx.drawImage(crop, 0, 0, 96, 96);
+      debugCanvas.classList.add('show');
+
+      liveCtx.strokeStyle = 'rgba(0,196,255,.6)'; liveCtx.lineWidth = 1.5;
+      liveCtx.setLineDash([4, 3]); liveCtx.strokeRect(x1, y1, cropW, cropH); liveCtx.setLineDash([]);
+      return crop;
+    }
+
+    function canvasToBase64(canvas, quality = 0.82) {
+      const MAX = 512, scale = Math.min(1, MAX / Math.max(canvas.width, canvas.height));
+      const w = Math.round(canvas.width * scale), h = Math.round(canvas.height * scale);
+      const tmp = document.createElement('canvas'); tmp.width = w; tmp.height = h;
+      tmp.getContext('2d').drawImage(canvas, 0, 0, w, h);
+      return tmp.toDataURL('image/jpeg', quality).split(',')[1];
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       SKELETON DRAWING
+    ══════════════════════════════════════════════════════════ */
+    function drawSkeleton(ctx, landmarks, W, H, isThreat) {
+      if (!landmarks || landmarks.length < 17) return;
+      const conns = [[11, 12], [11, 13], [13, 15], [12, 14], [14, 16], [11, 23], [12, 24], [23, 24], [15, 17], [15, 19], [16, 18], [16, 20]];
+      const col = isThreat ? '#ff4757' : '#00e5a0', dim = isThreat ? 'rgba(255,71,87,.3)' : 'rgba(0,229,160,.3)';
+      conns.forEach(([a, b]) => {
+        if (!landmarks[a] || !landmarks[b] || landmarks[a].visibility < .4 || landmarks[b].visibility < .4) return;
+        ctx.beginPath(); ctx.moveTo(landmarks[a].x * W, landmarks[a].y * H); ctx.lineTo(landmarks[b].x * W, landmarks[b].y * H);
+        ctx.strokeStyle = dim; ctx.lineWidth = 2; ctx.stroke();
+      });
+      [11, 12, 13, 14, 15, 16, 19, 20].forEach(i => {
+        const lm = landmarks[i]; if (!lm || lm.visibility < .4) return;
+        ctx.beginPath(); ctx.arc(lm.x * W, lm.y * H, 5, 0, Math.PI * 2);
+        ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+      });
+      if (isThreat) {
+        const lW = landmarks[15], rW = landmarks[16];
+        if (lW?.visibility > .4 && rW?.visibility > .4) {
+          ctx.beginPath(); ctx.moveTo(lW.x * W, lW.y * H); ctx.lineTo(rW.x * W, rW.y * H);
+          ctx.strokeStyle = '#ff4757'; ctx.lineWidth = 4; ctx.setLineDash([8, 4]); ctx.stroke(); ctx.setLineDash([]);
+          ctx.font = 'bold 11px JetBrains Mono,monospace'; ctx.fillStyle = '#ff4757'; ctx.textAlign = 'center';
+          ctx.fillText('⚠ THREAT DETECTED', ((lW.x + rW.x) / 2) * W, ((lW.y + rW.y) / 2) * H - 14);
+        }
+      }
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       TEMPORAL SMOOTHING (from v2)
+    ══════════════════════════════════════════════════════════ */
+    function applyTemporalSmoothing(isThreat, itemName, confidence) {
+      const passes = isThreat && (confidence >= confThreshold);
+      if (passes) { confirmCount = Math.min(confirmCount + 1, CONFIRM_FRAMES_NEEDED); clearCount = 0; }
+      else { clearCount = Math.min(clearCount + 1, CLEAR_FRAMES_NEEDED); confirmCount = 0; }
+
+      const badge = document.getElementById('confirmBadge');
+      if (passes && confirmCount < CONFIRM_FRAMES_NEEDED) {
+        badge.textContent = `⏳ ${confirmCount}/${CONFIRM_FRAMES_NEEDED}`; badge.classList.add('show');
+      } else { badge.classList.remove('show'); }
+
+      if (!liveRodState && confirmCount >= CONFIRM_FRAMES_NEEDED) return true;
+      if (liveRodState && clearCount >= CLEAR_FRAMES_NEEDED) return false;
+      return liveRodState;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       APPLY DETECTION RESULT TO LIVE UI
+    ══════════════════════════════════════════════════════════ */
+    function applyLiveResult({ isThreat, itemName, confidence, reason, source }) {
+      updateConfBar('liveConfFill', 'liveConfPct', 'liveConfBar', confidence, isThreat);
+      const rbox = document.getElementById('liveReasoning');
+      const sourceLabel = source === 'knn' ? '[KNN]' : '[Groq]';
+      rbox.textContent = `${sourceLabel} 💬 ${reason}`; rbox.classList.add('show');
+      document.getElementById('detScore').textContent = Math.round(confidence) + '%';
+
+      const confirmedThreat = applyTemporalSmoothing(isThreat, itemName, confidence);
+      if (confirmedThreat !== liveRodState) {
+        liveRodState = confirmedThreat;
+        if (liveRodState) { alertCount++; document.getElementById('alertCount').textContent = alertCount; }
+      }
+
+      const badge = document.getElementById('detBadge'), icon = document.getElementById('detIcon'), val = document.getElementById('detValue');
+      if (liveRodState) {
+        badge.className = 'det-badge detected'; icon.textContent = '🚨';
+        val.textContent = (itemName !== 'none' ? itemName.toUpperCase() : 'THREAT') + ' detected'; val.className = 'det-badge-value danger-text';
+        document.getElementById('liveAlert').className = 'alert-overlay rod';
+        document.getElementById('liveAlert').textContent = '⚠ ' + (itemName !== 'none' ? itemName.toUpperCase() : 'THREAT') + ' DETECTED';
+        setStatus('danger');
+      } else if (itemName !== 'none' && !isThreat) {
+        badge.className = 'det-badge safe'; icon.textContent = '✅';
+        val.textContent = 'Safe: ' + itemName; val.className = 'det-badge-value safe-text';
+        document.getElementById('liveAlert').className = 'alert-overlay no-rod';
+        document.getElementById('liveAlert').textContent = '✓ Holding: ' + itemName;
+        setStatus('active');
       } else {
-        iBadge.className='det-badge safe'; iIcon.textContent='✅';
-        iVal.textContent='The person is not holding rod'; iVal.className='det-badge-value safe-text';
-        banner.className='img-result-banner safe';
-        banner.textContent='✓ The person is not holding rod — score: '+Math.round(score)+'/100';
+        badge.className = 'det-badge safe'; icon.textContent = '👤';
+        val.textContent = 'No threat detected'; val.className = 'det-badge-value safe-text';
+        document.getElementById('liveAlert').className = 'alert-overlay no-rod';
+        document.getElementById('liveAlert').textContent = '✓ No threat';
+        setStatus('active');
       }
-      banner.style.display='block';
-    } else {
-      imgCtx.font='14px monospace'; imgCtx.fillStyle='rgba(255,255,255,0.4)'; imgCtx.textAlign='center';
-      imgCtx.fillText('No person detected', W/2, H/2);
-      iBadge.className='det-badge'; iIcon.textContent='🔍'; iVal.textContent='No person found'; iVal.className='det-badge-value';
-      banner.className='img-result-banner safe'; banner.textContent='ℹ No person/pose found in this image.'; banner.style.display='block';
-      document.getElementById('imgAlert').className='alert-overlay';
     }
-  });
-  await imagePose.send({image: img});
-}
 
-function rerunImage() {
-  if(!lastImageFile) return;
-  document.getElementById('processingMsg').style.display='block';
-  document.getElementById('rerunBtn').disabled=true;
-  const reader=new FileReader();
-  reader.onload=e=>{ const img=new Image(); img.onload=()=>runImagePose(img); img.src=e.target.result; };
-  reader.readAsDataURL(lastImageFile);
-}
+    function hasDrasticChange(newLM) {
+      if (!newLM) return false; if (!lastLandmarks) return true;
+      let diff = 0; const kp = [11, 12, 13, 14, 15, 16, 23, 24];
+      kp.forEach(i => { if (!newLM[i] || !lastLandmarks[i]) return; diff += Math.hypot(newLM[i].x - lastLandmarks[i].x, newLM[i].y - lastLandmarks[i].y); });
+      return (diff / kp.length) > 0.015;
+    }
 
-function clearImage() {
-  lastImageFile=null;
-  imgCtx.clearRect(0,0,imgCanvas.width,imgCanvas.height);
-  imgCanvas.style.display='none';
-  document.getElementById('dropZone').style.display='flex';
-  document.getElementById('imgAlert').className='alert-overlay';
-  document.getElementById('imgConfBar').style.display='none';
-  document.getElementById('imgResultBanner').style.display='none';
-  document.getElementById('rerunBtn').disabled=true;
-  document.getElementById('clearBtn').disabled=true;
-  document.getElementById('imgDetBadge').className='det-badge';
-  document.getElementById('imgDetIcon').textContent='🟡';
-  document.getElementById('imgDetValue').textContent='Upload an image';
-  document.getElementById('imgDetValue').className='det-badge-value';
-  document.getElementById('imgDetScore').textContent='—';
-}
-</script>
+    /* ══════════════════════════════════════════════════════════
+       LIVE MEDIAPIPE CALLBACK
+    ══════════════════════════════════════════════════════════ */
+    function onLiveResults(results) {
+      const W = liveCanvas.width, H = liveCanvas.height;
+      liveCtx.save(); liveCtx.clearRect(0, 0, W, H);
+      if (results.image) { liveCtx.drawImage(results.image, 0, 0, W, H); liveCtx.fillStyle = 'rgba(0,0,0,.22)'; liveCtx.fillRect(0, 0, W, H); }
+
+      const now = Date.now();
+      fpsArr.push(Math.round(1000 / Math.max(1, now - lastFrameTime)));
+      if (fpsArr.length > 10) fpsArr.shift();
+      document.getElementById('fpsVal').textContent = Math.round(fpsArr.reduce((a, b) => a + b, 0) / fpsArr.length) + ' fps';
+      lastFrameTime = now;
+
+      const personVisible = !!(results.poseLandmarks?.length > 0);
+      if (personVisible) {
+        const avgVis = results.poseLandmarks.reduce((s, l) => s + (l.visibility || 0), 0) / results.poseLandmarks.length;
+        document.getElementById('poseConf').textContent = Math.round(avgVis * 100) + '%';
+        drawSkeleton(liveCtx, results.poseLandmarks, W, H, liveRodState);
+      } else {
+        liveCtx.font = '13px monospace'; liveCtx.fillStyle = 'rgba(255,255,255,.3)';
+        liveCtx.textAlign = 'center'; liveCtx.fillText('No person in frame', W / 2, H / 2);
+        document.getElementById('liveAlert').className = 'alert-overlay';
+        document.getElementById('knnOverlay').classList.remove('show');
+        confirmCount = 0; clearCount = 0; liveRodState = false;
+        debugCanvas.classList.remove('show');
+        setStatus('active');
+      }
+      liveCtx.restore();
+
+      const shouldScan = personVisible && hasDrasticChange(results.poseLandmarks);
+      if (!groqInFlight && isRunning && (now - lastGroqCall) >= groqInterval && shouldScan) {
+        lastGroqCall = now;
+        lastLandmarks = JSON.parse(JSON.stringify(results.poseLandmarks));
+        groqInFlight = true;
+        document.getElementById('liveThinking').classList.add('show');
+
+        const cropCanvas = cropHandRegion(liveCanvas, results.poseLandmarks);
+        const b64 = canvasToBase64(cropCanvas);
+
+        // Use smart router instead of direct Groq call
+        smartDetect(b64, cropCanvas)
+          .then(r => { if (r) applyLiveResult(r); })
+          .catch(err => {
+            const rb = document.getElementById('liveReasoning');
+            rb.textContent = '⚠ Detection error: ' + err.message; rb.classList.add('show');
+          })
+          .finally(() => { groqInFlight = false; document.getElementById('liveThinking').classList.remove('show'); });
+      }
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       CAMERA CONTROLS
+    ══════════════════════════════════════════════════════════ */
+    async function startCamera() {
+      if (typeof Pose === 'undefined') { alert('MediaPipe still loading…'); return; }
+      try {
+        if (stream) stream.getTracks().forEach(t => t.stop());
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode, width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+        videoEl.srcObject = stream; videoEl.style.display = 'block';
+        document.getElementById('livePlaceholder').style.display = 'none';
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('stopBtn').disabled = false;
+        isRunning = true; liveRodState = false; lastGroqCall = 0; confirmCount = 0; clearCount = 0;
+        setStatus('active');
+
+        const mirror = facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+        videoEl.style.transform = mirror; liveCanvas.style.transform = mirror;
+
+        if (!livePose) {
+          livePose = new Pose({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}` });
+          livePose.setOptions({ modelComplexity: 1, smoothLandmarks: true, enableSegmentation: false, minDetectionConfidence: .5, minTrackingConfidence: .5 });
+          livePose.onResults(onLiveResults);
+        }
+
+        async function frameLoop() {
+          if (!isRunning) return;
+          liveCanvas.width = videoEl.videoWidth || 640; liveCanvas.height = videoEl.videoHeight || 480;
+          if (videoEl.readyState === 4) await livePose.send({ image: videoEl });
+          animationId = requestAnimationFrame(frameLoop);
+        }
+        animationId = requestAnimationFrame(frameLoop);
+      } catch (err) { alert('Camera error: ' + err.message); setStatus('ready'); }
+    }
+
+    function stopCamera() {
+      isRunning = false; groqInFlight = false;
+      if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
+      if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+      videoEl.srcObject = null; videoEl.style.display = 'none';
+      document.getElementById('livePlaceholder').style.display = 'flex';
+      document.getElementById('startBtn').disabled = false; document.getElementById('stopBtn').disabled = true;
+      document.getElementById('liveAlert').className = 'alert-overlay';
+      document.getElementById('liveConfBar').style.display = 'none';
+      document.getElementById('liveThinking').classList.remove('show');
+      document.getElementById('liveReasoning').classList.remove('show');
+      document.getElementById('confirmBadge').classList.remove('show');
+      document.getElementById('knnOverlay').classList.remove('show');
+      debugCanvas.classList.remove('show');
+      liveCtx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
+      confirmCount = 0; clearCount = 0; liveRodState = false;
+      setStatus('ready');
+    }
+
+    async function flipCamera() { facingMode = facingMode === 'user' ? 'environment' : 'user'; if (isRunning) { stopCamera(); await startCamera(); } }
+
+    /* ══════════════════════════════════════════════════════════
+       IMAGE UPLOAD
+    ══════════════════════════════════════════════════════════ */
+    function triggerFileInput() { document.getElementById('fileInput').removeAttribute('capture'); document.getElementById('fileInput').click(); }
+    function onDrop(e) { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith('image/')) processImageFile(f); }
+    function handleFileSelect(e) { const f = e.target.files[0]; if (f) processImageFile(f); e.target.value = ''; }
+
+    function processImageFile(file) {
+      lastImageFile = file;
+      ['dropZone', 'imgCanvas'].forEach(id => document.getElementById(id).style.display = 'none');
+      document.getElementById('processingMsg').style.display = 'block';
+      document.getElementById('imgResultBanner').style.display = 'none';
+      document.getElementById('imgAlert').className = 'alert-overlay';
+      document.getElementById('imgConfBar').style.display = 'none';
+      document.getElementById('imgReasoning').classList.remove('show');
+      document.getElementById('rerunBtn').disabled = true; document.getElementById('clearBtn').disabled = true;
+      document.getElementById('imgDetBadge').className = 'det-badge';
+      document.getElementById('imgDetIcon').textContent = '⟳';
+      document.getElementById('imgDetValue').textContent = 'Analyzing…';
+      document.getElementById('imgDetValue').className = 'det-badge-value';
+      document.getElementById('imgDetScore').textContent = '—';
+      setStatus('analyzing');
+
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = new Image();
+        img.onload = () => runImageAnalysis(img);
+        img.onerror = () => showImageError('Could not load image file.');
+        img.src = e.target.result;
+      };
+      reader.onerror = () => showImageError('Could not read file.');
+      reader.readAsDataURL(file);
+    }
+
+    async function runImageAnalysis(img) {
+      const MAX = 1280; let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+      if (w > MAX || h > MAX) { const s = MAX / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+      imgCanvas.width = w; imgCanvas.height = h;
+      imgCtx.drawImage(img, 0, 0, w, h);
+      imgCanvas.style.display = 'block'; imgCanvas.style.maxWidth = '100%'; imgCanvas.style.maxHeight = '100%';
+      document.getElementById('imgThinking').classList.add('show');
+
+      const b64 = canvasToBase64(imgCanvas);
+      const groqProm = callGroqWithFallback(b64, imgCanvas);
+      const poseProm = runImagePose(img);
+
+      let groqResult, poseLandmarks;
+      try { [groqResult, poseLandmarks] = await Promise.all([groqProm, poseProm]); }
+      catch (err) {
+        document.getElementById('imgThinking').classList.remove('show');
+        document.getElementById('processingMsg').style.display = 'none';
+        document.getElementById('rerunBtn').disabled = false; document.getElementById('clearBtn').disabled = false;
+        showImageError('Detection error: ' + err.message); return;
+      }
+
+      document.getElementById('imgThinking').classList.remove('show');
+      document.getElementById('processingMsg').style.display = 'none';
+      document.getElementById('rerunBtn').disabled = false; document.getElementById('clearBtn').disabled = false;
+
+      imgCtx.clearRect(0, 0, w, h); imgCtx.drawImage(img, 0, 0, w, h);
+      imgCtx.fillStyle = 'rgba(0,0,0,.28)'; imgCtx.fillRect(0, 0, w, h);
+      if (poseLandmarks) drawSkeleton(imgCtx, poseLandmarks, w, h, groqResult.isThreat);
+
+      const { isThreat, itemName, confidence, reason } = groqResult;
+      const alertThreat = isThreat && (confidence >= confThreshold);
+      updateConfBar('imgConfFill', 'imgConfPct', 'imgConfBar', confidence, isThreat);
+
+      const rbox = document.getElementById('imgReasoning');
+      rbox.textContent = '💬 ' + reason; rbox.classList.add('show');
+
+      const banner = document.getElementById('imgResultBanner');
+      const iBadge = document.getElementById('imgDetBadge'), iIcon = document.getElementById('imgDetIcon');
+      const iVal = document.getElementById('imgDetValue');
+      document.getElementById('imgDetScore').textContent = Math.round(confidence) + '%';
+
+      if (alertThreat) {
+        iBadge.className = 'det-badge detected'; iIcon.textContent = '🚨';
+        iVal.textContent = (itemName !== 'none' ? itemName.toUpperCase() : 'THREAT') + ' detected'; iVal.className = 'det-badge-value danger-text';
+        document.getElementById('imgAlert').className = 'alert-overlay rod';
+        document.getElementById('imgAlert').textContent = '⚠ ' + (itemName !== 'none' ? itemName.toUpperCase() : 'THREAT') + ' DETECTED';
+        banner.className = 'img-result-banner rod';
+        banner.textContent = `⚠ ${itemName.toUpperCase()} detected — confidence: ${Math.round(confidence)}%`;
+        alertCount++; document.getElementById('alertCount').textContent = alertCount;
+        setStatus('danger');
+      } else if (itemName !== 'none' && !isThreat) {
+        iBadge.className = 'det-badge safe'; iIcon.textContent = '✅'; iVal.textContent = 'Safe: ' + itemName; iVal.className = 'det-badge-value safe-text';
+        document.getElementById('imgAlert').className = 'alert-overlay no-rod';
+        document.getElementById('imgAlert').textContent = '✓ Holding: ' + itemName;
+        banner.className = 'img-result-banner safe'; banner.textContent = `✓ Safe: ${itemName} — confidence: ${Math.round(confidence)}%`;
+        setStatus('ready');
+      } else {
+        const lowConf = isThreat && !alertThreat;
+        iBadge.className = 'det-badge safe'; iIcon.textContent = '👤';
+        iVal.textContent = lowConf ? `Low confidence (${Math.round(confidence)}%) — Safe` : 'No threat detected'; iVal.className = 'det-badge-value safe-text';
+        document.getElementById('imgAlert').className = 'alert-overlay no-rod';
+        document.getElementById('imgAlert').textContent = '✓ No threat';
+        banner.className = 'img-result-banner safe';
+        banner.textContent = lowConf ? `ℹ Low confidence (${Math.round(confidence)}% < ${confThreshold}%)` : `✓ No threat — confidence: ${Math.round(confidence)}%`;
+        setStatus('ready');
+      }
+      banner.style.display = 'block';
+    }
+
+    async function runImagePose(img) {
+      if (imagePose) { try { imagePose.close(); } catch (e) { } imagePose = null; }
+      if (typeof Pose === 'undefined') return null;
+      imagePose = new Pose({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}` });
+      imagePose.setOptions({ modelComplexity: 1, smoothLandmarks: false, enableSegmentation: false, minDetectionConfidence: .4, minTrackingConfidence: .4 });
+      return new Promise(resolve => {
+        imagePose.onResults(r => resolve(r.poseLandmarks || null));
+        imagePose.send({ image: img }).catch(() => resolve(null));
+      });
+    }
+
+    function showImageError(msg) {
+      document.getElementById('processingMsg').style.display = 'none';
+      document.getElementById('dropZone').style.display = 'flex';
+      document.getElementById('imgCanvas').style.display = 'none';
+      const b = document.getElementById('imgResultBanner');
+      b.className = 'img-result-banner info'; b.textContent = '⚠ ' + msg; b.style.display = 'block';
+      setStatus('ready');
+    }
+    function rerunImage() { if (lastImageFile) processImageFile(lastImageFile); }
+    function clearImage() {
+      if (imagePose) { try { imagePose.close(); } catch (e) { } imagePose = null; }
+      lastImageFile = null; imgCtx.clearRect(0, 0, imgCanvas.width, imgCanvas.height);
+      imgCanvas.style.display = 'none'; document.getElementById('dropZone').style.display = 'flex';
+      document.getElementById('imgAlert').className = 'alert-overlay';
+      document.getElementById('imgConfBar').style.display = 'none';
+      document.getElementById('imgResultBanner').style.display = 'none';
+      document.getElementById('processingMsg').style.display = 'none';
+      document.getElementById('imgReasoning').classList.remove('show');
+      document.getElementById('imgThinking').classList.remove('show');
+      document.getElementById('rerunBtn').disabled = true; document.getElementById('clearBtn').disabled = true;
+      document.getElementById('imgDetBadge').className = 'det-badge';
+      document.getElementById('imgDetIcon').textContent = '🟡';
+      document.getElementById('imgDetValue').textContent = 'Upload an image';
+      document.getElementById('imgDetValue').className = 'det-badge-value';
+      document.getElementById('imgDetScore').textContent = '—';
+      setStatus('ready');
+    }
+
+    /* ══ INIT ══ */
+    window.addEventListener('DOMContentLoaded', async () => {
+      setStatus('ready');
+      loadMobileNet(); // preload feature extractor
+
+      try {
+        await initDB();
+        const stored = await loadFromDB();
+        if (stored.length > 0) {
+          knnExamples = stored;
+          updateLearningUI();
+          updateAccuracy();
+          flashLearnMsg(`📂 Restored ${stored.length} examples from IndexedDB`);
+        }
+      } catch (e) {
+        console.error('DB Init failed:', e);
+      }
+    });
+  </script>
 </body>
+
 </html>
